@@ -217,6 +217,9 @@ vector<vector<float>> System::calc_stresses(){
     tuple<Atom, float> closest;
     vector<vector<float>> stress_function;
     vector<float> tuple;
+    if(System::surface_atoms.empty()){
+        System::detect_surface();
+        }
     for(Atom& atm : System::surface_atoms){
         if(atm.get_type() == 1){
             closest = Helper::find_closest(atm, System::modifiers, System::box);
