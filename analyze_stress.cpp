@@ -25,8 +25,8 @@ string get_box(ifstream& contents, array<float, 3>& box, array<float, 3>& box_sh
         }
     return combined_lines;
     }
-vector<float> analysis(string destination, string filename, bool iso_surface){
-    ifstream contents(destination + filename);
+vector<float> analysis(string file_location, string destination, string filename, bool iso_surface){
+    ifstream contents(file_location + filename);
     string line;
     int atoms_number;
     float binwidth = 0.2;
@@ -38,6 +38,7 @@ vector<float> analysis(string destination, string filename, bool iso_surface){
     vector<float> result;
     array<string, 2> header = {"", ""};
     int header_ctr = 0;
+    vector<Atom> surface;
     while(getline(contents, line)){
         header[header_ctr] += (line + "\n");
         if(Helper::string_contains(line, "ITEM: NUMBER OF ATOMS")){
@@ -50,13 +51,15 @@ vector<float> analysis(string destination, string filename, bool iso_surface){
             }
         if(Helper::string_contains(line, "ITEM: ATOMS")){
             System* atom_system = new System(box, contents, atoms_number, center, box_shift);
+            surface = atom_system -> detect_surface();
+            if(iso_surface){
+                atom_system -> isolate_surface(header, "surface." + filename);
+                break;
+                }
             total_stresses = atom_system -> calc_stresses();
             Helper::vector2d_csv(destination + "total/" + filename, "Distance to closest modifier, Stress", total_stresses);
             average_stresses = atom_system -> average_stresses(binwidth);
             Helper::vector2d_csv(destination + "averaged/" + filename, "Bin span, Stress", average_stresses);
-            if(iso_surface){
-                atom_system -> isolate_surface(header, "surface." + filename);
-                }
             result.push_back(box[2]);
             result.push_back(atom_system -> system_stress());
             }
@@ -72,21 +75,26 @@ int main(int argc, char** argv){
         if(Helper::string_contains(input, "/")){
             vector<string> split_name = Helper::split(input, "/");
             string pattern = split_name.back();
+            split_name.pop_back();
             string file_location = "";
             for(string& dir_name : split_name){
                 file_location += (dir_name + "/");
                 }
-            string destination = "stress_analysis";
+            string destination = "analysis";
+            fs::create_directory(cwd/destination);
             fs::create_directory(cwd/destination/"total");
             fs::create_directory(cwd/destination/"averaged");
-            for(string& filename : Helper::files_by_pattern(file_location, pattern)){
-                stresses.push_back(analysis(destination + "/", filename, false));
+            for(string& filename : Helper::files_by_pattern(file_location, pattern, true)){
+                cout << "Starting the stress analysis for: " << filename << endl << endl;
+                stresses.push_back(analysis(file_location, destination + "/", filename, false));
+                Helper::vector2d_csv(destination + "/stress_strain", "Box z, Ave Stress", stresses);
                 }
             }
         }else{
             fs::create_directory(cwd/"total");
             fs::create_directory(cwd/"averaged");
-            analysis("./", input, true);
+            cout << "Starting the stress analysis for: " << input << endl << endl;
+            analysis("./", "./", input, true);
             }
     return 0;
     }

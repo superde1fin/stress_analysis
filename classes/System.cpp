@@ -131,7 +131,8 @@ vector<Atom> System::mesh_closest(vector<vector<vector<vector<Atom>>>>& mesh, ar
                 center = array<float, 3>{((float)(origin_key[0]) + (float)0.5)*(System::grid_sizes[0]), ((float)origin_key[1] + (float)0.5)*(System::grid_sizes[1]), ((float)origin_key[2] + (float)0.5)*(System::grid_sizes[1])};
                 for(Atom& atm : mesh[key[0]][key[1]][key[2]]){
                     dist = Helper::dist(atm.get_position(), center, System::box);
-                    if(dist < (System::grid_sizes[0] + System::grid_sizes[1] + System::grid_sizes[2])/6){
+//                    if(dist < (System::grid_sizes[0] + System::grid_sizes[1] + System::grid_sizes[2])/6){
+                    if(1){
                         result.push_back(atm);
                         }
                     }
@@ -161,11 +162,12 @@ vector<Atom> System::filter_surface(vector<Atom> unfiltered){
     }
 
 vector<Atom> System::detect_surface(){
+    cout << "Starting surface detection\n\n";
     vector<Atom> surface_atoms;
     int prev_num_surface;
     int cur_num_surface = 0;
     int mesh_size;
-    int num_splits = 50;
+    int num_splits = 2;
     vector<vector<vector<vector<Atom>>>> mesh;
     do{
         prev_num_surface = cur_num_surface;
@@ -178,13 +180,13 @@ vector<Atom> System::detect_surface(){
         surface_atoms = iter_get_surface(mesh);
         //surface_atoms = System::filter_surface(surface_atoms);
         cur_num_surface = surface_atoms.size();
-        num_splits += 20;
+        num_splits *= 2;
         cout << "Prev: " << prev_num_surface << " Cur: " << cur_num_surface << endl;
         cout << "-------------------------------\n";
-//        }while(!System::grid_masks.size());
+        }while(!System::grid_masks.size());
 //        }while(mesh_size < System::atoms_number || cur_num_surface == 0);
 //        }while(cur_num_surface > prev_num_surface || cur_num_surface == 0);
-        }while((abs(prev_num_surface - cur_num_surface) >= 0.05*cur_num_surface || cur_num_surface == 0) && mesh_size < System::atoms_number);
+//        }while((abs(prev_num_surface - cur_num_surface) >= 0.05*cur_num_surface || cur_num_surface == 0) && mesh_size < System::atoms_number);
     System::surface_atoms = surface_atoms;
     return System::surface_atoms;
     }
@@ -214,6 +216,7 @@ void System::scan_positions(ifstream& contents){
     }
 
 vector<vector<float>> System::calc_stresses(){
+    cout << "Beginning the surface stress calculations\n\n";
     tuple<Atom, float> closest;
     vector<vector<float>> stress_function;
     vector<float> tuple;
