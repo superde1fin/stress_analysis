@@ -11,9 +11,9 @@
 #include "System.hpp"
 #include "Atom.hpp"
 #include "Helper.hpp"
+#include "Grid.hpp"
 
 using namespace std;
-using namespace std::chrono;
 
 
 System::System(array<float, 3> box, ifstream& contents, int atoms_number, array<float, 3> center, array<float, 3> box_shift){
@@ -27,128 +27,6 @@ System::System(array<float, 3> box, ifstream& contents, int atoms_number, array<
     }
 
 
-vector<vector<vector<vector<Atom>>>> System::split_atoms(){
-    vector<vector<vector<vector<Atom>>>> mesh;
-    int x_span = round(System::box[0]/System::grid_sizes[0]);
-    int y_span = round(System::box[1]/System::grid_sizes[1]);
-    int z_span = round(System::box[2]/System::grid_sizes[2]);
-    array<float, 3> position;
-    array<float, 3> atom_position;
-    for(int i = 0; i < x_span; i++){
-        vector<vector<vector<Atom>>> y_vect(y_span);
-        mesh.push_back(y_vect);
-        for(int j = 0; j < y_span; j++){
-            vector<vector<Atom>> z_vect(z_span);
-            mesh[i][j] = z_vect;
-            for(int k = 0; k < z_span; k++){
-                vector<Atom> atom_vect;
-                position = array<float, 3>{i*System::grid_sizes[0], j*System::grid_sizes[1], k*System::grid_sizes[2]};
-                mesh[i][j][k]= atom_vect;
-                }
-            }
-        }
-
-    for(Atom& atm : System::atoms){
-        atom_position = atm.get_position();
-        mesh[(int)(atom_position[0]/System::grid_sizes[0])][(int)(atom_position[1]/System::grid_sizes[1])][(int)(atom_position[2]/System::grid_sizes[2])].push_back(atm);
-        }
-    vector<float> densities;
-    for(int i = 0; i < x_span; i++){
-        for(int j = 0; j < y_span; j++){
-            for(int k = 0; k < z_span; k++){
-                densities.push_back(mesh[i][j][k].size());
-                }
-            }
-        }
-    sort(densities.begin(), densities.end());
-    int dens_size = densities.size();
-    System::mesh_density = dens_size%2 ? (densities[(int)(dens_size/2)] + densities[(int)(dens_size/2) + 1])/2 : densities[(int)(dens_size/2)];
-    return mesh;
-    }
-
-vector<Atom> System::iter_get_surface(vector<vector<vector<vector<Atom>>>>& mesh){
-    vector<Atom> surface_atoms;
-    vector<Atom> closest;
-    bool all_around;
-    bool ever_empty = false, in_mask;
-    array<int, 3> key;
-    int i, j, k;
-    int x_span = round(System::box[0]/System::grid_sizes[0]);
-    int y_span = round(System::box[1]/System::grid_sizes[1]);
-    int z_span = round(System::box[2]/System::grid_sizes[2]);
-    Atom atm;
-    array<float, 3> position;
-    for(i = 0; i < x_span; i++){
-        for(j = 0; j < y_span; j++){
-            for(k = 0; k < z_span; k++){
-                in_mask = false;
-                position = array<float, 3>{i*System::grid_sizes[0], j*System::grid_sizes[1], k*System::grid_sizes[2]};
-                for(auto& mask : System::grid_masks){
-                    if(mask[0][0] <= position[0] && position[0] < mask[0][1] && mask[1][0] <= position[1] && position[1] < mask[1][1] && mask[2][0] <= position[2] && position[2] < mask[2][1]){
-                        in_mask = true;
-                        break;
-                        }
-                    }
-                if(!in_mask){
-                    key = array<int, 3>{i, j, k};
-                    all_around = false;
-                    closest = System::mesh_closest(mesh, key, all_around);
-                    if(all_around){
-                        System::grid_masks.push_back(array<array<float, 2>, 3>{array<float, 2>{i*System::grid_sizes[0], (i + 1)*System::grid_sizes[0]}, array<float, 2>{j*System::grid_sizes[1], (j + 1)*System::grid_sizes[1]}, array<float, 2>{k*System::grid_sizes[2], (k + 1)*System::grid_sizes[2]}});
-                        }
-                    else{
-                        ever_empty = true;
-                        for(Atom& atm : closest){
-//                        for(Atom& atm : mesh[i][j][k]){
-                            surface_atoms.push_back(atm);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    if(!ever_empty){
-        System::grid_masks.clear();
-        }
-    Helper::remove_dupl(surface_atoms);
-    return surface_atoms;
-    }
-
-vector<Atom> System::mesh_closest(vector<vector<vector<vector<Atom>>>>& mesh, array<int, 3> origin_key, bool& all_around){
-    float dist;
-    int i, j, k;
-    array<int, 3> key;
-    array<float, 3> center;
-    vector<Atom> result;
-    int x_span = round(System::box[0]/System::grid_sizes[0]);
-    int y_span = round(System::box[1]/System::grid_sizes[1]);
-    int z_span = round(System::box[2]/System::grid_sizes[2]);
-    int neigh_ctr = 0;
-    for(i = -1; i < 2; i++){
-        for(j = -1; j < 2; j++){
-            for(k = -1; k < 2; k++){
-                key = array<int, 3>{Helper::true_modulo(origin_key[0] + i, x_span), Helper::true_modulo(origin_key[1] + j, y_span), Helper::true_modulo(origin_key[2] + k, z_span)};
-                center = array<float, 3>{((float)(origin_key[0]) + (float)0.5)*(System::grid_sizes[0]), ((float)origin_key[1] + (float)0.5)*(System::grid_sizes[1]), ((float)origin_key[2] + (float)0.5)*(System::grid_sizes[1])};
-                for(Atom& atm : mesh[key[0]][key[1]][key[2]]){
-                    dist = Helper::dist(atm.get_position(), center, System::box);
-//                    if(dist < (System::grid_sizes[0] + System::grid_sizes[1] + System::grid_sizes[2])/6){
-                    if(1){
-                        result.push_back(atm);
-                        }
-                    }
-                if(mesh[key[0]][key[1]][key[2]].size() > 0.3*System::mesh_density){
-//                if(!mesh[key[0]][key[1]][key[2]].empty()){
-                    neigh_ctr++;
-                    }
-                }
-            }
-        }
-    if(neigh_ctr == 27){
-        all_around = true;
-        }
-    return result;
-    }
-
 vector<Atom> System::filter_surface(vector<Atom> unfiltered){
     vector<Atom> filtered;
     tuple<Atom, float> closest;
@@ -161,32 +39,36 @@ vector<Atom> System::filter_surface(vector<Atom> unfiltered){
     return filtered;
     }
 
-vector<Atom> System::detect_surface(){
+vector<Atom> System::detect_surface(float void_volume){
     cout << "Starting surface detection\n\n";
     vector<Atom> surface_atoms;
     int prev_num_surface;
     int cur_num_surface = 0;
     int mesh_size;
     int num_splits = 2;
-    vector<vector<vector<vector<Atom>>>> mesh;
+    array<float, 3> grid_sides;
+    AtomGrid* grid;
+    MaskGrid* masks = new MaskGrid(System::box, num_splits);
     do{
         prev_num_surface = cur_num_surface;
-        System::grid_sizes = Helper::calc_cell_spans(System::box, num_splits);
-        cout << "Spans: " << System::grid_sizes[0] << " " << System::grid_sizes[1] << " " << System::grid_sizes[2] << endl;
-        mesh = System::split_atoms();
-        cout << "Average mesh density: " << System::mesh_density << endl;
-        mesh_size = mesh.size()*mesh[0].size()*mesh[0][0].size();
+        grid = new AtomGrid(System::box, num_splits, &System::atoms, masks, System::radii_mapping);
+        grid_sides = grid -> get_float_sides();
+        cout << "Spans: " << grid_sides[0] << " " << grid_sides[1] << " " << grid_sides[2] << endl;
+        cout << "Average mesh density: " << grid -> get_density() << endl;
+        mesh_size = grid -> get_size();;
         cout << "Atom mesh size: " << mesh_size << endl;
-        surface_atoms = iter_get_surface(mesh);
+        surface_atoms = grid -> get_surface(masks, void_volume);
+
         //surface_atoms = System::filter_surface(surface_atoms);
+
         cur_num_surface = surface_atoms.size();
         num_splits *= 2;
         cout << "Prev: " << prev_num_surface << " Cur: " << cur_num_surface << endl;
         cout << "-------------------------------\n";
-        }while(!System::grid_masks.size());
+//        }while(!System::grid_masks.size());
 //        }while(mesh_size < System::atoms_number || cur_num_surface == 0);
 //        }while(cur_num_surface > prev_num_surface || cur_num_surface == 0);
-//        }while((abs(prev_num_surface - cur_num_surface) >= 0.05*cur_num_surface || cur_num_surface == 0) && mesh_size < System::atoms_number);
+        }while((abs(prev_num_surface - cur_num_surface) >= 0.05*cur_num_surface || cur_num_surface == 0) && mesh_size < System::atoms_number);
     System::surface_atoms = surface_atoms;
     return System::surface_atoms;
     }

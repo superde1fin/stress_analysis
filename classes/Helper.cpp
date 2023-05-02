@@ -17,10 +17,6 @@
 using namespace std;
 namespace fs = filesystem;
 
-int Helper::key2int(array<int, 3> key){
-    return pow(2, key[0])*pow(3, key[1])*pow(5, key[2]);
-    }
-
 void Helper::remove_dupl(vector<Atom>& atoms){
     map<int, int> atom_ctrs;
     vector<Atom> result;
@@ -189,16 +185,19 @@ vector<string> Helper::files_by_pattern(string lookup_dir, string pattern, bool 
     return sorted_files;
     }
 
-array<float, 3> Helper::calc_cell_spans(array<float, 3> box, int num_splits){
-    array<float, 3> result;
+tuple<array<float, 3>, array<int, 3>> Helper::calc_cell_spans(array<float, 3> box, int num_splits){
+    array<float, 3> float_sides;
+    array<int, 3> int_sides;
     float max_size = *max_element(box.begin(), box.end());
     float preferred_split = max_size/num_splits;
     int span;
     for(int i = 0; i < 3;  i++){
         span = round(box[i]/preferred_split);
-        result[i] = box[i]/(span ? span : 1);
+        span = span ? span : 1;
+        int_sides[i] = span;
+        float_sides[i] = box[i]/(span);
         }
-    return result;
+    return make_tuple(float_sides, int_sides);
     }
 
 int Helper::true_modulo(int divident, int divisor){

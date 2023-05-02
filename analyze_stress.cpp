@@ -25,7 +25,7 @@ string get_box(ifstream& contents, array<float, 3>& box, array<float, 3>& box_sh
         }
     return combined_lines;
     }
-vector<float> analysis(string file_location, string destination, string filename, bool iso_surface){
+vector<float> analysis(string file_location, string destination, string filename, bool iso_surface, float void_volume){
     ifstream contents(file_location + filename);
     string line;
     int atoms_number;
@@ -51,7 +51,7 @@ vector<float> analysis(string file_location, string destination, string filename
             }
         if(Helper::string_contains(line, "ITEM: ATOMS")){
             System* atom_system = new System(box, contents, atoms_number, center, box_shift);
-            surface = atom_system -> detect_surface();
+            surface = atom_system -> detect_surface(void_volume);
             if(iso_surface){
                 atom_system -> isolate_surface(header, "surface." + filename);
                 break;
@@ -69,6 +69,7 @@ vector<float> analysis(string file_location, string destination, string filename
 
 int main(int argc, char** argv){
     string input(argv[1]);
+    string void_volume(argv[2]);
     fs::path cwd = fs::current_path();
     if(Helper::string_contains(input, "*")){
         vector<vector<float>> stresses;
@@ -86,7 +87,7 @@ int main(int argc, char** argv){
             fs::create_directory(cwd/destination/"averaged");
             for(string& filename : Helper::files_by_pattern(file_location, pattern, true)){
                 cout << "Starting the stress analysis for: " << filename << endl << endl;
-                stresses.push_back(analysis(file_location, destination + "/", filename, false));
+                stresses.push_back(analysis(file_location, destination + "/", filename, false, stof(void_volume)));
                 Helper::vector2d_csv(destination + "/stress_strain", "Box z, Ave Stress", stresses);
                 }
             }
@@ -94,7 +95,7 @@ int main(int argc, char** argv){
             fs::create_directory(cwd/"total");
             fs::create_directory(cwd/"averaged");
             cout << "Starting the stress analysis for: " << input << endl << endl;
-            analysis("./", "./", input, true);
+            analysis("./", "./", input, true, stof(void_volume));
             }
     return 0;
     }

@@ -4,6 +4,7 @@
 #include <vector>
 #include <array>
 #include <filesystem>
+#include <tuple>
 
 #include "Atom.hpp"
 
@@ -27,7 +28,6 @@ class Helper{
         static vector<string> files_by_pattern(string cwd, string pattern, bool sort);
         static bool fits_pattern(string to_check, string pattern);
         static bool fits_pattern(string to_check, string pattern, string* filler);
-        static int key2int(array<int, 3> key);
-        static array<float, 3> calc_cell_spans(array<float, 3> box, int num_splits);
+        static tuple<array<float, 3>, array<int, 3>> calc_cell_spans(array<float, 3> box, int num_splits);
         static int true_modulo(int divident, int divisor);
     };
