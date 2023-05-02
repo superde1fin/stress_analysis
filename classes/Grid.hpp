@@ -1,6 +1,9 @@
 #pragma once
 
 #include <array>
+#include <unordered_map>
+
+#include "GridCell.hpp"
 
 using namespace std;
 
@@ -11,6 +14,7 @@ class Grid{
         array<int, 3> get_int_sides();
         array<float, 3> get_float_sides();
         int get_size();
+        int get_member_num();
     protected:
         array<float, 3> box;
         array<float, 3> float_sides;

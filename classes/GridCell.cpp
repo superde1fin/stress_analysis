@@ -1,19 +1,19 @@
-#include "GridCelll.hpp"
+#include "GridCell.hpp"
 
 using namespace std;
 
-bool GridCelll::is_empty(){
-    return GridCelll::atoms.empty();
+bool GridCell::is_empty(){
+    return GridCell::atoms.empty();
     }
 
-void GridCelll::add_atom(Atom* atm_ptr){
-    GridCelll::atoms.push_back(atm_ptr);
+void GridCell::add_atom(Atom* atm_ptr){
+    GridCell::atoms.push_back(atm_ptr);
     }
 
-int GridCelll::get_size(){
-    return GridCelll::atoms.size();
+int GridCell::get_size(){
+    return GridCell::atoms.size();
     }
 
-GridCelll::~GridCelll(){
-    GridCelll::atoms.clear();
+GridCell::~GridCell(){
+    GridCell::atoms.clear();
     }

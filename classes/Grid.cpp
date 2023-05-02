@@ -1,6 +1,7 @@
 #include <array>
 
 #include "Grid.hpp"
+#include "Helper.hpp"
 
 using namespace std;
 
@@ -25,6 +26,10 @@ Grid::~Grid(){
         }
     }
 
-int AtomGrid::get_size(){
-    return AtomGrid::grid_map.size();
+int Grid::get_size(){
+    return Grid::int_sides[0]*Grid::int_sides[1]*Grid::int_sides[2];
+    }
+
+int Grid::get_member_num(){
+    return Grid::grid_map.size();
     }

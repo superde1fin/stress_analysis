@@ -12,6 +12,8 @@
 #include "Atom.hpp"
 #include "Helper.hpp"
 #include "Grid.hpp"
+#include "AtomGrid.hpp"
+#include "MaskGrid.hpp"
 
 using namespace std;
 
@@ -47,13 +49,18 @@ vector<Atom> System::detect_surface(float void_volume){
     int mesh_size;
     int num_splits = 2;
     array<float, 3> grid_sides;
+    array<int, 3> grid_spans;
     AtomGrid* grid;
     MaskGrid* masks = new MaskGrid(System::box, num_splits);
+    int debug_ctr = 0;
     do{
+        cout << debug_ctr++ << endl;
         prev_num_surface = cur_num_surface;
-        grid = new AtomGrid(System::box, num_splits, &System::atoms, masks, System::radii_mapping);
+        grid = new AtomGrid(System::box, num_splits, &(System::atoms), masks, System::radii_mapping);
         grid_sides = grid -> get_float_sides();
-        cout << "Spans: " << grid_sides[0] << " " << grid_sides[1] << " " << grid_sides[2] << endl;
+        grid_spans = grid -> get_int_sides();
+        cout << "Sides: " << grid_sides[0] << " " << grid_sides[1] << " " << grid_sides[2] << endl;
+        cout << "Spans: " << grid_spans[0] << " " << grid_spans[1] << " " << grid_spans[2] << endl;
         cout << "Average mesh density: " << grid -> get_density() << endl;
         mesh_size = grid -> get_size();;
         cout << "Atom mesh size: " << mesh_size << endl;
@@ -64,11 +71,10 @@ vector<Atom> System::detect_surface(float void_volume){
         cur_num_surface = surface_atoms.size();
         num_splits *= 2;
         cout << "Prev: " << prev_num_surface << " Cur: " << cur_num_surface << endl;
+        cout << "Number of masks: " << masks -> get_member_num() << endl;
         cout << "-------------------------------\n";
-//        }while(!System::grid_masks.size());
-//        }while(mesh_size < System::atoms_number || cur_num_surface == 0);
-//        }while(cur_num_surface > prev_num_surface || cur_num_surface == 0);
-        }while((abs(prev_num_surface - cur_num_surface) >= 0.05*cur_num_surface || cur_num_surface == 0) && mesh_size < System::atoms_number);
+        }while(debug_ctr < 7);
+//        }while((abs(prev_num_surface - cur_num_surface) >= 0.05*cur_num_surface || cur_num_surface == 0) && mesh_size < System::atoms_number);
     System::surface_atoms = surface_atoms;
     return System::surface_atoms;
     }
@@ -88,7 +94,6 @@ void System::scan_positions(ifstream& contents){
         atm -> set_radius(System::radii_mapping[atm -> get_type()]);
         System::atoms.push_back(*atm);
 //        cout << atm -> get_z() << " " << System::box_shift[2] << endl << line << endl;
-        if(atm ->get_radius() < System::min_radius){System::min_radius = atm -> get_radius();}
         if(atm -> get_type() != 1 && atm -> get_type() != 2 ){
             System::modifiers.push_back(*atm);
             }
@@ -102,9 +107,6 @@ vector<vector<float>> System::calc_stresses(){
     tuple<Atom, float> closest;
     vector<vector<float>> stress_function;
     vector<float> tuple;
-    if(System::surface_atoms.empty()){
-        System::detect_surface();
-        }
     for(Atom& atm : System::surface_atoms){
         if(atm.get_type() == 1){
             closest = Helper::find_closest(atm, System::modifiers, System::box);

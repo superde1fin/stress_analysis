@@ -6,14 +6,15 @@
 
 using namespace std;
 
-class GridCelll{
+class GridCell{
     public:
-        GridCelll();
-        ~GridCelll();
+        ~GridCell();
         bool is_empty();
         int get_size();
     private:
         vector<Atom*> atoms;
         void add_atom(Atom* atm_ptr);
     friend class Grid;
+    friend class AtomGrid;
+    friend class MaskGrid;
     };
