@@ -53,27 +53,30 @@ vector<Atom> System::detect_surface(float void_volume){
     AtomGrid* grid;
     MaskGrid* masks = new MaskGrid(System::box, num_splits);
     int debug_ctr = 0;
-    do{
-        cout << debug_ctr++ << endl;
+    float cell_volume;
+    bool done = false;
+    while(!done){
         prev_num_surface = cur_num_surface;
-        grid = new AtomGrid(System::box, num_splits, &(System::atoms), masks, System::radii_mapping);
-        grid_sides = grid -> get_float_sides();
-        grid_spans = grid -> get_int_sides();
-        cout << "Sides: " << grid_sides[0] << " " << grid_sides[1] << " " << grid_sides[2] << endl;
-        cout << "Spans: " << grid_spans[0] << " " << grid_spans[1] << " " << grid_spans[2] << endl;
-        cout << "Average mesh density: " << grid -> get_density() << endl;
-        mesh_size = grid -> get_size();;
-        cout << "Atom mesh size: " << mesh_size << endl;
-        surface_atoms = grid -> get_surface(masks, void_volume);
-
-        //surface_atoms = System::filter_surface(surface_atoms);
-
-        cur_num_surface = surface_atoms.size();
-        num_splits *= 2;
-        cout << "Prev: " << prev_num_surface << " Cur: " << cur_num_surface << endl;
-        cout << "Number of masks: " << masks -> get_member_num() << endl;
-        cout << "-------------------------------\n";
-        }while(debug_ctr < 7);
+        grid = new AtomGrid(System::box, num_splits, &(System::atoms), masks, System::radii_mapping, void_volume);
+        cell_volume = grid -> get_cell_volume();
+        if(cell_volume >= void_volume){
+            grid_sides = grid -> get_float_sides();
+            grid_spans = grid -> get_int_sides();
+            cout << "Sides: " << grid_sides[0] << " " << grid_sides[1] << " " << grid_sides[2] << endl;
+            cout << "Spans: " << grid_spans[0] << " " << grid_spans[1] << " " << grid_spans[2] << endl;
+            cout << "Average mesh density: " << grid -> get_density() << endl;
+            mesh_size = grid -> get_size();;
+            cout << "Atom mesh size: " << mesh_size << endl;
+            surface_atoms = grid -> get_surface(masks);
+            cur_num_surface = surface_atoms.size();
+            num_splits *= 2;
+            cout << "Prev: " << prev_num_surface << " Cur: " << cur_num_surface << endl;
+            cout << "Number of masks: " << masks -> get_member_num() << endl;
+            cout << "-------------------------------\n";
+            }
+        else{done = true;}
+//        if(debug_ctr >= 1){done = true;}
+        }
 //        }while((abs(prev_num_surface - cur_num_surface) >= 0.05*cur_num_surface || cur_num_surface == 0) && mesh_size < System::atoms_number);
     System::surface_atoms = surface_atoms;
     return System::surface_atoms;

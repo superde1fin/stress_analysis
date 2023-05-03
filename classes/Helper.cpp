@@ -69,7 +69,8 @@ bool Helper::string_contains(string to_check, string substr){
     }
 
 float Helper::dist(array<float, 3>atom1, array<float, 3> atom2, array<float, 3> box){
-    float x, y, z; x = abs(atom1[0] - atom2[0]);
+    float x, y, z;
+    x = abs(atom1[0] - atom2[0]);
     x = (x > box[0]/2) ? (box[0] - x) : x;
     
     y = abs(atom1[1] - atom2[1]);

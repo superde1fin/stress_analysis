@@ -54,7 +54,6 @@ vector<float> analysis(string file_location, string destination, string filename
             surface = atom_system -> detect_surface(void_volume);
             if(iso_surface){
                 atom_system -> isolate_surface(header, "surface." + filename);
-                break;
                 }
             total_stresses = atom_system -> calc_stresses();
             Helper::vector2d_csv(destination + "total/" + filename, "Distance to closest modifier, Stress", total_stresses);
