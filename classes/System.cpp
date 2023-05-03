@@ -85,8 +85,8 @@ vector<Atom> System::detect_surface(float void_volume){
 void System::scan_positions(ifstream& contents){
     string line;
     vector<string> split_line;
-    for(int i = 0; i < System::atoms_number; i++){
-        getline(contents, line);
+    int i;
+    for(i = 0; i < System::atoms_number && getline(contents, line); i++){
         split_line = Helper::split(line, " ");
         Atom* atm = new Atom();
         atm -> set_pure_line(line);
@@ -102,7 +102,9 @@ void System::scan_positions(ifstream& contents){
             }
         delete atm;
         }
-
+    if(i < System::atoms_number){
+        System::atoms_number = i;
+        }
     }
 
 vector<vector<float>> System::calc_stresses(){

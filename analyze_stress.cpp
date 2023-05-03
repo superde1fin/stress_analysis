@@ -53,7 +53,7 @@ vector<float> analysis(string file_location, string destination, string filename
             System* atom_system = new System(box, contents, atoms_number, center, box_shift);
             surface = atom_system -> detect_surface(void_volume);
             if(iso_surface){
-                atom_system -> isolate_surface(header, "surface." + filename);
+                atom_system -> isolate_surface(header, destination + "surfaces/surface." + filename);
                 }
             total_stresses = atom_system -> calc_stresses();
             Helper::vector2d_csv(destination + "total/" + filename, "Distance to closest modifier, Stress", total_stresses);
@@ -84,15 +84,17 @@ int main(int argc, char** argv){
             fs::create_directory(cwd/destination);
             fs::create_directory(cwd/destination/"total");
             fs::create_directory(cwd/destination/"averaged");
+            fs::create_directory(cwd/destination/"surfaces");
             for(string& filename : Helper::files_by_pattern(file_location, pattern, true)){
                 cout << "Starting the stress analysis for: " << filename << endl << endl;
-                stresses.push_back(analysis(file_location, destination + "/", filename, false, stof(void_volume)));
+                stresses.push_back(analysis(file_location, destination + "/", filename, true, stof(void_volume)));
                 Helper::vector2d_csv(destination + "/stress_strain", "Box z, Ave Stress", stresses);
                 }
             }
         }else{
             fs::create_directory(cwd/"total");
             fs::create_directory(cwd/"averaged");
+            fs::create_directory(cwd/"surfaces");
             cout << "Starting the stress analysis for: " << input << endl << endl;
             analysis("./", "./", input, true, stof(void_volume));
             }

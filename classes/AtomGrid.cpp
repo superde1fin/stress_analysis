@@ -67,7 +67,7 @@ vector<Atom> AtomGrid::get_surface(MaskGrid* mask_ptr){
                 }
             }
         else{
-            if(AtomGrid::all_around(it -> first, 1)){
+            if(AtomGrid::all_around(it -> first, 2)){
                 mask_ptr -> add_mask(it -> first);
                 }
             else{
@@ -115,10 +115,8 @@ bool AtomGrid::all_around(array<int, 3> origin_key, int depth){
         for(int j = -1*depth; j <= depth; j++){
             for(int k = -1*depth; k <= depth; k++){
                 key = array<int, 3>{Helper::true_modulo(origin_key[0] + i, AtomGrid::int_sides[0]), Helper::true_modulo(origin_key[1] + j, AtomGrid::int_sides[1]), Helper::true_modulo(origin_key[2] + k, AtomGrid::int_sides[2])};
-                if(AtomGrid::grid_map.count(key) && AtomGrid::free_volume(key) < AtomGrid::void_volume){
-                    if(AtomGrid::grid_map.count(key) && AtomGrid::grid_map[key] -> get_size()){
-                        neigh_ctr++;
-                        }
+                if(AtomGrid::grid_map.count(key) && AtomGrid::grid_map[key] -> get_size() > 0.5*AtomGrid::average_density){
+                    neigh_ctr++;
                     }
                 }
             }
