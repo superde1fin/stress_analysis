@@ -17,18 +17,25 @@
 using namespace std;
 namespace fs = filesystem;
 
+//REmoves the duplicates from a vector of atoms by ids
 void Helper::remove_dupl(vector<Atom>& atoms){
     map<int, int> atom_ctrs;
     vector<Atom> result;
+    //Loop through all atoms
     for(auto it = atoms.begin(); it != atoms.end(); it++){
+        //If has not been recorded before
         if(!atom_ctrs[(*it).get_id()]){
+            //Add to a final vector
             result.push_back(*it);
             }
+        //Record an occurance of the atom
         atom_ctrs[(*it).get_id()]++;
         }
+    //Reassign the atoms vector by reference
     atoms = result;
     }
 
+//Split a line by delimeter
 vector<string> Helper::split(string str, string delim){
     vector<string> result;
     int str_size = str.length();
@@ -51,6 +58,7 @@ vector<string> Helper::split(string str, string delim){
     return result;
     }
 
+//Check whether a string contains a substring
 bool Helper::string_contains(string to_check, string substr){
     int string_length = to_check.length();
     string current_substr("");
@@ -68,6 +76,7 @@ bool Helper::string_contains(string to_check, string substr){
     return false;
     }
 
+//Calculate the distance between two points in a periodic box
 float Helper::dist(array<float, 3>atom1, array<float, 3> atom2, array<float, 3> box){
     float x, y, z;
     x = abs(atom1[0] - atom2[0]);
@@ -82,6 +91,7 @@ float Helper::dist(array<float, 3>atom1, array<float, 3> atom2, array<float, 3> 
     return pow(pow(x, 2) + pow(y, 2) + pow(z, 2), 0.5);
     }
 
+//Returns closest atom out of th given vector
 tuple<Atom, float> Helper::find_closest(Atom atm, vector<Atom> to_compare, array<float, 3> box){
     float min = numeric_limits<float>::infinity();
     float cur_dist;
@@ -96,6 +106,7 @@ tuple<Atom, float> Helper::find_closest(Atom atm, vector<Atom> to_compare, array
     return make_tuple(key, min);
     }
 
+//Record the contents of a 2d vector in a csv file
 void Helper::vector2d_csv(string name, string first_line, vector<vector<float>> vect){
     char comma;
     float word;
@@ -120,6 +131,7 @@ void Helper::vector2d_csv(string name, string first_line, vector<vector<float>> 
     }
 
 
+//Check whether a string fits a specific pattern
 bool Helper::fits_pattern(string to_check, string pattern){
     int string_length = to_check.length();
     int pattern_length = pattern.length();
@@ -135,6 +147,7 @@ bool Helper::fits_pattern(string to_check, string pattern){
     return true;
     }
 
+//The same function as above but returns what was found in place of *
 bool Helper::fits_pattern(string to_check, string pattern, string* filler){
     int string_length = to_check.length();
     int pattern_length = pattern.length();
@@ -155,6 +168,7 @@ bool Helper::fits_pattern(string to_check, string pattern, string* filler){
     return true;
     }
 
+//Returns a vector of filenames that fit the pattern
 vector<string> Helper::files_by_pattern(string lookup_dir, string pattern){
     vector<string> found_files;
     string filename;
@@ -168,6 +182,7 @@ vector<string> Helper::files_by_pattern(string lookup_dir, string pattern){
     return found_files;
     }
 
+//The same function as above, but sorts the results by filler
 vector<string> Helper::files_by_pattern(string lookup_dir, string pattern, bool sort_results = false){
     vector<tuple<string, int>> found_files;
     string filename;
@@ -186,6 +201,7 @@ vector<string> Helper::files_by_pattern(string lookup_dir, string pattern, bool 
     return sorted_files;
     }
 
+//Calculates appropriate grid size based on the number of splits provided
 tuple<array<float, 3>, array<int, 3>> Helper::calc_cell_spans(array<float, 3> box, int num_splits){
     array<float, 3> float_sides;
     array<int, 3> int_sides;
@@ -201,6 +217,7 @@ tuple<array<float, 3>, array<int, 3>> Helper::calc_cell_spans(array<float, 3> bo
     return make_tuple(float_sides, int_sides);
     }
 
+//Implements the correct modulo that works with negative numbers (small)
 int Helper::true_modulo(int divident, int divisor){
     if(divident < 0){
         return divisor + divident;

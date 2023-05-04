@@ -3,6 +3,7 @@
 
 #include "Helper.hpp"
 
+//Setter functions
 void Atom::set_id(int id){Atom::id = id;}
 void Atom::set_pure_line(string line){Atom::pure_line = line;}
 void Atom::set_type(int type){Atom::type = type;}
@@ -17,6 +18,7 @@ void Atom::set_stress_tensor(array<float, 6> stress_tensor){
 void Atom::set_radius(float radius){
     Atom::radius = radius;
     }
+//Getter functions
 int Atom::get_id(){return Atom::id;}
 int Atom::get_type(){return Atom::type;}
 int Atom::get_radius(){return Atom::radius;}
