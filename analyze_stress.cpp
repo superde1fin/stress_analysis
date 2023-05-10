@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <array>
 #include <vector>
+#include <tuple>
 
 #include "classes/System.hpp"
 #include "classes/Atom.hpp"
@@ -32,7 +33,7 @@ string get_box(ifstream& contents, array<float, 3>& box, array<float, 3>& box_sh
         }
     return combined_lines;
     }
-vector<float> analysis(string file_location, string destination, string filename, bool iso_surface, float void_volume){
+tuple<vector<float>, map<string, float>> analysis(string file_location, string destination, string filename, bool iso_surface, float void_volume, int htype){
     ifstream contents(file_location + filename);
     string line;
     int atoms_number;
@@ -43,6 +44,7 @@ vector<float> analysis(string file_location, string destination, string filename
     vector<vector<float>> total_stresses;
     vector<vector<float>> average_stresses;
     vector<float> result;
+    map<string, float> species;
     array<string, 2> header = {"", ""};
     int header_ctr = 0;
     vector<Atom> surface;
@@ -70,18 +72,20 @@ vector<float> analysis(string file_location, string destination, string filename
                 atom_system -> isolate_surface(header, destination + "surfaces/surface." + filename);
                 }
             //Run the stress calculator
-            total_stresses = atom_system -> calc_stresses();
-            //Record the atom stresses into a csv
-            Helper::vector2d_csv(destination + "total/" + filename, "Distance to closest modifier, Stress", total_stresses);
+//            total_stresses = atom_system -> calc_stresses();
+//            //Record the atom stresses into a csv
+//            Helper::vector2d_csv(destination + "total/" + filename, "Distance to closest modifier, Stress", total_stresses);
             //Condense the data and average stress based on distance ranges
-            average_stresses = atom_system -> average_stresses(binwidth);
-            Helper::vector2d_csv(destination + "averaged/" + filename, "Bin span, Stress", average_stresses);
+//            average_stresses = atom_system -> average_stresses(binwidth);
+//            Helper::vector2d_csv(destination + "averaged/" + filename, "Bin span, Stress", average_stresses);
+            cout << "Starting surface species detection\n";
+            species = atom_system -> get_surface_species(htype);
             //Record the box dimension and average stress in the result to create the stress-strain curve
             result.push_back(box[2]);
             result.push_back(atom_system -> system_stress());
             }
         }
-    return result;
+    return make_tuple(result, species);
     }
 
 int main(int argc, char** argv){
@@ -89,11 +93,15 @@ int main(int argc, char** argv){
     string input(argv[1]);
     //Read minimum void space
     string void_volume(argv[2]);
+    //Record hydrogen type
+    string htype(argv[3]);
     //Create the file system object
     fs::path cwd = fs::current_path();
+    tuple<vector<float>, map<string, float>> analysis_result;
+    vector<vector<float>> stresses;
+    vector<map<string, float>> surface_species;
     //Check if the inputted name is a pattern
     if(Helper::string_contains(input, "*")){
-        vector<vector<float>> stresses;
         //Check whether the files are in a subdirectory
         if(Helper::string_contains(input, "/")){
             //Split name by slashes
@@ -113,11 +121,15 @@ int main(int argc, char** argv){
             fs::create_directory(cwd/destination/"averaged");
             fs::create_directory(cwd/destination/"surfaces");
             //For each file that matches the pattern perform the stress calculations
-            for(string& filename : Helper::files_by_pattern(file_location, pattern, true)){
+            vector<string> pattern_fillers;
+            for(string& filename : Helper::files_by_pattern(file_location, pattern, &pattern_fillers, true)){
                 cout << "Starting the stress analysis for: " << filename << endl << endl;
                 //Store the stress and strain in a csv file
-                stresses.push_back(analysis(file_location, destination + "/", filename, true, stof(void_volume)));
+                analysis_result = analysis(file_location, destination + "/", filename, true, stof(void_volume), stoi(htype));
+                stresses.push_back(get<vector<float>>(analysis_result));
+                surface_species.push_back(get<map<string, float>>(analysis_result));
                 Helper::vector2d_csv(destination + "/stress_strain", "Box z, Ave Stress", stresses);
+                Helper::vector_of_maps2csv(destination + "/species", surface_species, pattern_fillers);
                 }
             }
         }else{
@@ -126,7 +138,7 @@ int main(int argc, char** argv){
             fs::create_directory(cwd/"averaged");
             fs::create_directory(cwd/"surfaces");
             cout << "Starting the stress analysis for: " << input << endl << endl;
-            analysis("./", "./", input, true, stof(void_volume));
+            analysis("./", "./", input, true, stof(void_volume), stoi(htype));
             }
     return 0;
     }

@@ -13,11 +13,12 @@
 
 #include "Helper.hpp"
 #include "Atom.hpp"
+#include "Molecule.hpp"
 
 using namespace std;
 namespace fs = filesystem;
 
-//REmoves the duplicates from a vector of atoms by ids
+//Removes the duplicates from a vector of atoms by ids
 void Helper::remove_dupl(vector<Atom>& atoms){
     map<int, int> atom_ctrs;
     vector<Atom> result;
@@ -183,7 +184,7 @@ vector<string> Helper::files_by_pattern(string lookup_dir, string pattern){
     }
 
 //The same function as above, but sorts the results by filler
-vector<string> Helper::files_by_pattern(string lookup_dir, string pattern, bool sort_results = false){
+vector<string> Helper::files_by_pattern(string lookup_dir, string pattern, vector<string>* pattern_fillers, bool sort_results = false){
     vector<tuple<string, int>> found_files;
     string filename;
     string within;
@@ -197,6 +198,7 @@ vector<string> Helper::files_by_pattern(string lookup_dir, string pattern, bool 
     vector<string> sorted_files;
     for(tuple<string, int>& entry : found_files){
         sorted_files.push_back(get<string>(entry));
+        pattern_fillers -> push_back(Helper::to_str(get<int>(entry)));
         }
     return sorted_files;
     }
@@ -225,4 +227,86 @@ int Helper::true_modulo(int divident, int divisor){
     else{
         return divident%divisor;
         }
+    }
+
+bool Helper::element_in(int elem, set<int> search_vector){
+    for(int item : search_vector){
+        if(item == elem){
+            return true;
+            }
+        }
+    return false;
+    }
+
+void Helper::vector_of_maps2csv(string name, vector<map<string, float>> map_vect, vector<string> first_col){
+    cout << "Writing to CSV\n";
+    map<string, int> first_line;
+    int number_cols = 1;
+    first_line["Timestep"] = 0;
+    
+    //Record all the columns that are going to be present in a csv
+    for(map<string, float> line: map_vect){
+        for(map<string, float>::iterator it_sp = line.begin(); it_sp != line.end(); ++it_sp){
+            if(!first_line.count(it_sp -> first)){
+                first_line[it_sp -> first] =  number_cols++;
+                }
+            }
+        }
+        
+    //Create a csv body string
+    int size_line = first_line.size();
+    vector<string> line_vect(size_line, "0");
+    int vsize = map_vect.size();
+    int fsize = first_col.size();
+    int size = (vsize > fsize) ? fsize : vsize;
+    map<string, float> line;
+    string csv_body("");
+    
+    for(int i = 0; i < size; i++){
+        line = map_vect[i];
+        line_vect[0] = first_col[i];
+        for(map<string, float>::iterator it_sp = line.begin(); it_sp != line.end(); ++it_sp){
+            line_vect[first_line[it_sp -> first]] = to_str(it_sp -> second);
+            }
+        for(int j = 0; j < size_line; j++){
+            csv_body += to_str(line_vect[j]) + ((j == size_line - 1) ? "\n" : ", ");
+            }
+        }
+        
+    string first_line_str("");
+    map<int, string> reversed_fl;
+    for(map<string, int>::iterator it_name = first_line.begin(); it_name != first_line.end(); ++it_name){
+        reversed_fl[it_name -> second] = it_name -> first;
+        }
+        
+        
+    for(int i = 0; i < size_line; i++){
+        first_line_str += reversed_fl[i] + ((i == size_line - 1) ? "\n" : ", ");
+        }
+    
+    
+    ofstream myfile;
+    myfile.open(name + ".csv");
+    myfile << first_line_str << csv_body;
+    myfile.close();
+   myfile.close();
+    }
+
+bool Helper::element_in(int elem, vector<int> search_vector){
+    for(int item : search_vector){
+        if(item == elem){
+            return true;
+            }
+        }
+    return false;
+    }
+
+vector<int> Helper::not_in(vector<int> a, vector<int> b){
+    vector<int> non_intersection;
+    for(int item : b){
+        if(!Helper::element_in(item, a)){
+            non_intersection.push_back(item);
+            }
+        }
+    return non_intersection;
     }

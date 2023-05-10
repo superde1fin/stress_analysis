@@ -19,7 +19,9 @@ class AtomGrid: public Grid{
         float get_density();
         vector<Atom> get_surface(MaskGrid* mask_ptr);
         float get_cell_volume();
+        void reset_grid(vector<Atom>* atoms_ptr);
     private:
+        vector<Atom> find_neighbors(Atom* atm, set<int> exclude, map<int, map<int, float>> cutoffs);
         float cell_volume;
         float void_volume;
         float average_density;
@@ -28,4 +30,5 @@ class AtomGrid: public Grid{
         vector<Atom> get_neighbors(array<int, 3> key);
         bool all_around(array<int, 3> key, int depth);
         float median_density;
+    friend class System;
     };
