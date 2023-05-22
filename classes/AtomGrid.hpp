@@ -15,13 +15,14 @@ using namespace std;
 class AtomGrid: public Grid{
     public:
         AtomGrid(array<float, 3> box, int num_splits, vector<Atom>* atoms_ptr, MaskGrid* mask_ptr, map<int, float> radii_mapping, float void_volume);
+        AtomGrid(array<float, 3> box, int num_splits, vector<Atom>* atoms_ptr);
+        tuple<Atom, float> find_closest(Atom* atm);
         int get_status(int key_x, int key_y, int key_z);
         void add_atom(int key_x, int key_y, int key_z, Atom* atm_ptr);
         float get_density();
         vector<Atom> get_surface(MaskGrid* mask_ptr);
         float get_cell_volume();
         void reset_grid(vector<Atom>* atoms_ptr, map<int, map<int, float>> cutoffs);
-        tuple<Atom, float> find_closest(Atom* atm);
     private:
         vector<tuple<Atom, float>> find_neighbors(Atom* atm, set<int> exclude, map<int, map<int, float>> cutoffs);
         float cell_volume;

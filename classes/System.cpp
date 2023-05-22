@@ -19,7 +19,8 @@ using namespace std;
 
 
 //System class constructor
-System::System(array<float, 3> box, ifstream& contents, int atoms_number, array<float, 3> center, array<float, 3> box_shift){
+System::System(array<float, 3> box, ifstream& contents, int atoms_number, array<float, 3> center, array<float, 3> box_shift, int htype){
+    System::htype = htype;
     System::box = box;
     System::box_shift = box_shift;
     System::center = center;
@@ -102,6 +103,12 @@ void System::scan_positions(ifstream& contents){
         if(atm -> get_type() != 1 && atm -> get_type() != 2 ){
             System::modifiers.push_back(*atm);
             }
+        if(atm -> get_type() == 1){
+            System::former_atoms.push_back(*atm);
+            }
+        if(atm -> get_type() == htype){
+            System::hydrogens.push_back(*atm);
+            }
         delete atm;
         }
     //A safe guard from incorrect atom number listed in .dump
@@ -111,50 +118,48 @@ void System::scan_positions(ifstream& contents){
     }
 
 //A function that calculates per atom average stress as a function to the closest modifier
-vector<vector<float>> System::calc_stresses(){
+vector<vector<float>> System::calc_stresses(vector<Atom>& secondary_atoms){
     cout << "Beginning the surface stress calculations\n\n";
     tuple<Atom, float> closest;
     vector<vector<float>> stress_function;
     vector<float> tuple;
+    AtomGrid* grid = new AtomGrid(System::box, 32, &secondary_atoms);
     //For each modifier atom
-    for(Atom& atm : System::surface_atoms){
-        //Checking that modifiers recorded correctly
-        if(atm.get_type() == 1){
-            //Get closest atom
-            closest = Helper::find_closest(atm, System::modifiers, System::box);
-            tuple.clear();
-            //Put the distance and stress into a resulting vector
-            tuple.push_back(get<float>(closest));
-            tuple.push_back(atm.get_ave_stress());
-            stress_function.push_back(tuple);
-            }
+    for(Atom& atm : System::former_atoms){
+        //Get closest atom
+        closest = grid -> find_closest(&atm);
+        tuple.clear();
+        //Put the distance and stress into a resulting vector
+        tuple.push_back(get<float>(closest));
+        tuple.push_back(atm.get_ave_stress());
+        stress_function.push_back(tuple);
         }
-    //Record the stresses vector as a system member
-    System::surface_stresses = stress_function;
     return stress_function;
     }
 
 //Average the stresses by distance regions
-vector<vector<float>> System::average_stresses(float binwidth){
+vector<vector<float>> System::average_stresses(float binwidth, vector<vector<float>>& stresses){
     //Sort the stresses vector by distance to closest modifier
-    sort(System::surface_stresses.begin(), System::surface_stresses.end(), [=](vector<float>& vect1, vector<float>& vect2){return vect1[0] < vect2[0];});
+    sort(stresses.begin(), stresses.end(), [=](vector<float>& vect1, vector<float>& vect2){return vect1[0] < vect2[0];});
     float temp_stress_value = 0.0;
-    int datapoint_number = 0, group_number = (int)(System::surface_stresses[0][0]/binwidth);
+    int datapoint_number = 0, group_number = (int)(stresses[0][0]/binwidth);
     float prev_dist = -1.0;
 
     vector<vector<float>> averaged_stresses;
     vector<float> tuple;
 
-    int stresses_vect_size = System::surface_stresses.size();
+    int stresses_vect_size = stresses.size();
     //For each dist-stress pair
     for(int i = 0; i < stresses_vect_size; i++){
         //If in the next distance region
-        if(prev_dist < group_number*binwidth && System::surface_stresses[i][0] >= group_number*binwidth){
+        if(prev_dist < group_number*binwidth && stresses[i][0] > group_number*binwidth){
             tuple.clear();
             //Record average distance
             tuple.push_back(group_number*binwidth);
             //Record average stress
             tuple.push_back(datapoint_number == 0 ? 0 : temp_stress_value/datapoint_number);
+            //Record the number of atoms contributing to this value
+            tuple.push_back(datapoint_number);
             averaged_stresses.push_back(tuple);
             //Increment group counter
             group_number++;
@@ -163,15 +168,16 @@ vector<vector<float>> System::average_stresses(float binwidth){
             datapoint_number = 0;
             }
         //Add the stress of an atom to a total
-        temp_stress_value += System::surface_stresses[i][1];
+        temp_stress_value += stresses[i][1];
         //Record the fact that some atom was found in the group
         datapoint_number++;
-        prev_dist = System::surface_stresses[i][0];
+        prev_dist = stresses[i][0];
         }
-    //Record the lase group
+    //Record the last group
     tuple.clear();
     tuple.push_back(group_number*binwidth);
     tuple.push_back(datapoint_number == 0 ? 0 : temp_stress_value/datapoint_number);
+    tuple.push_back(datapoint_number);
     averaged_stresses.push_back(tuple);
 
     //REcord the averaged stresses as a system member
@@ -205,7 +211,7 @@ void System::isolate_surface(array<string, 2> header, string filename){
     }
 
 //Find hydrogen species on the surface
-map<string, float> System::get_surface_species(int htype){
+map<string, float> System::get_surface_species(){
     System::grid -> reset_grid(&(System::atoms), System::cutoffs);
     int H_ctr = 0;
     map<string, int> species_count;
@@ -220,7 +226,7 @@ map<string, float> System::get_surface_species(int htype){
         iter_exclude.clear();
         ml = System::scan_molecule(prev_atm, atm, &iter_exclude);
         iter_exclude.clear();
-        closestH = ml -> closest(htype);
+        closestH = ml -> closest(System::htype);
         if(get<int>(closestH) < 3){
             truncated = get<Molecule*>(closestH) -> truncate(3);
             H_ctr++;
@@ -265,4 +271,12 @@ Molecule* System::scan_molecule(Atom prev_atm, Atom atm, set<int>* exclude){
         }
 //    cout << "Finished lookup for: " << atm.get_id() << "-----------------------" << endl;
     return res;
+    }
+
+vector<Atom> System::get_hydrogens(){
+    return System::hydrogens;
+    }
+
+vector<Atom> System::get_modifiers(){
+    return System::modifiers;
     }

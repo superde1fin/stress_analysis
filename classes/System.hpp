@@ -17,14 +17,16 @@ using namespace std;
 class System{
 
     public:
-        System(array<float, 3> box, ifstream& contents, int atoms_number, array<float, 3> center, array<float, 3> box_shift);
+        System(array<float, 3> box, ifstream& contents, int atoms_number, array<float, 3> center, array<float, 3> box_shift, int htype);
 
         vector<Atom> detect_surface(float void_volume);
-        vector<vector<float>> calc_stresses();
-        vector<vector<float>> average_stresses(float binwidth);
+        vector<vector<float>> calc_stresses(vector<Atom>& secondary_atoms);
+        vector<vector<float>> average_stresses(float binwidth, vector<vector<float>>& stresses);
         float system_stress();
         void isolate_surface(array<string, 2> header, string filename);
-        map<string, float> get_surface_species(int htype);
+        map<string, float> get_surface_species();
+        vector<Atom> get_hydrogens();
+        vector<Atom> get_modifiers();
     private:
         set<int> exclude;
         Molecule* scan_molecule(Atom prev_atm, Atom atm, set<int>* exclude);
@@ -42,6 +44,9 @@ class System{
         vector<vector<float>> surface_stresses;
         vector<vector<float>> averaged_stresses;
         vector<Atom> modifiers;
+        vector<Atom> former_atoms;
+        vector<Atom> hydrogens;
+        int htype;
 
         void scan_positions(ifstream& contents);
         vector<Atom> filter_surface(vector<Atom> unfiltered);

@@ -15,6 +15,24 @@
 
 using namespace std;
 
+//Basic AtomGrid constructor
+AtomGrid::AtomGrid(array<float, 3> box, int num_splits, vector<Atom>* atoms_ptr):Grid(box, num_splits){
+    array<int, 3> key;
+    array<float, 3> atom_position;
+    //Put each atom into its grid cell
+    for(auto it = atoms_ptr -> begin(); it != atoms_ptr -> end(); it++){
+        //Calculate atom position
+        atom_position = it -> get_position();
+        //Calculate cell position
+        key = {Helper::true_modulo((int)(atom_position[0]/AtomGrid::float_sides[0]), AtomGrid::int_sides[0]), Helper::true_modulo((int)(atom_position[1]/AtomGrid::float_sides[1]), AtomGrid::int_sides[1]), Helper::true_modulo((int)(atom_position[2]/AtomGrid::float_sides[2]), AtomGrid::int_sides[2])};
+        if(!AtomGrid::grid_map.count(key)){
+            GridCell* gc_ptr = new GridCell();
+            AtomGrid::grid_map[key] = gc_ptr;
+            }
+        AtomGrid::grid_map[key] -> add_atom(&*it);
+        }
+    }
+
 //Atom grid constructor
 AtomGrid::AtomGrid(array<float, 3> box, int num_splits, vector<Atom>* atoms_ptr, MaskGrid* mask_ptr, map<int, float> radii_mapping, float void_volume):Grid(box, num_splits){
     //Record the radii of different atoms
@@ -252,6 +270,7 @@ void AtomGrid::reset_grid(vector<Atom>* atoms_ptr, map<int, map<int, float>> cut
         }
     }
 
+//Finds closest atom in the grid
 tuple<Atom, float> AtomGrid::find_closest(Atom* atm){
     array<float, 3> atom_position = atm -> get_position();
     int depth = 1;
