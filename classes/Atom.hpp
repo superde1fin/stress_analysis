@@ -14,6 +14,7 @@ class Atom{
         array<float, 6> stress_tensor;
         float radius;
         string pure_line;
+        int Oid = 0;
 
         float get_ave_stress();
 
@@ -36,4 +37,5 @@ class Atom{
         float get_z();
         string get_pure_line();
     friend class System;
+    friend class AtomGrid;
     };

@@ -30,7 +30,6 @@ System::System(array<float, 3> box, ifstream& contents, int atoms_number, array<
     cout << "Modifiers detected: " << System::modifiers.size() << "\n\n";
     }
 
-
 //Regulates the surface detection performed by the AtomGrid class
 vector<Atom> System::detect_surface(float void_volume){
     cout << "Starting surface detection\n\n";
@@ -44,8 +43,10 @@ vector<Atom> System::detect_surface(float void_volume){
     System::masks = new MaskGrid(System::box, num_splits);
     float cell_volume;
     bool done = false;
+    AtomGrid* prev_grid;
     //Loop while the grid volume is greater than minimum detected void
     while(!done){
+        prev_grid = System::grid;
         //Create the AtomGrid object
         System::grid = new AtomGrid(System::box, num_splits, &(System::atoms), System::masks, System::radii_mapping, void_volume);
         //Calculate the grid cell olume
@@ -58,7 +59,7 @@ vector<Atom> System::detect_surface(float void_volume){
             cout << "Sides: " << grid_sides[0] << " " << grid_sides[1] << " " << grid_sides[2] << endl;
             cout << "Spans: " << grid_spans[0] << " " << grid_spans[1] << " " << grid_spans[2] << endl;
             cout << "Average mesh density: " << grid -> get_density() << endl;
-            mesh_size = System::grid -> get_size();;
+            mesh_size = System::grid -> get_size();
             cout << "Atom mesh size: " << mesh_size << endl;
             //Run the grid surface detection function
             surface_atoms = System::grid -> get_surface(System::masks);
@@ -71,6 +72,7 @@ vector<Atom> System::detect_surface(float void_volume){
             }
         else{done = true;}
         }
+    System::grid = prev_grid;
     //Record the acquired surface as a system member
     System::surface_atoms = surface_atoms;
     return System::surface_atoms;
@@ -204,7 +206,7 @@ void System::isolate_surface(array<string, 2> header, string filename){
 
 //Find hydrogen species on the surface
 map<string, float> System::get_surface_species(int htype){
-    System::grid -> reset_grid(&(System::atoms));
+    System::grid -> reset_grid(&(System::atoms), System::cutoffs);
     int H_ctr = 0;
     map<string, int> species_count;
     map<string, float> result;
@@ -215,12 +217,12 @@ map<string, float> System::get_surface_species(int htype){
     tuple<int, Molecule*> closestH;
     Molecule* truncated;
     for(Atom& atm : System::surface_atoms){
-        iter_exclude = System::exclude;
+        iter_exclude.clear();
         ml = System::scan_molecule(prev_atm, atm, &iter_exclude);
         iter_exclude.clear();
         closestH = ml -> closest(htype);
         if(get<int>(closestH) < 3){
-            truncated = get<Molecule*>(closestH) -> truncate(3, get<Molecule*>(closestH));
+            truncated = get<Molecule*>(closestH) -> truncate(3);
             H_ctr++;
             species_count[truncated -> get_name()]++;
             for(int id : truncated -> get_ids()){
@@ -229,10 +231,10 @@ map<string, float> System::get_surface_species(int htype){
             }
         prev_atm = atm;
         }
-    cout << H_ctr << endl;
+    cout << "Number of Hydrogen species detected: " << H_ctr << endl;
     for(auto it = species_count.begin(); it != species_count.end(); ++it){
-        result[it -> first] = (it -> second)/(float)H_ctr;
-//        cout << it -> first << " " << result[it -> first] << endl;
+        result[it -> first] = (it -> second)/(float)System::surface_atoms.size();
+        cout << it -> first << " " << result[it -> first] << endl;
         }
     return result;
     }
@@ -241,18 +243,24 @@ map<string, float> System::get_surface_species(int htype){
 Molecule* System::scan_molecule(Atom prev_atm, Atom atm, set<int>* exclude){
 //    cout << "Starting lookup for: " << atm.get_id() << "-----------------------" << endl;
     int atom_type = atm.get_type();
+    Atom loop_atm;
+    float dist;
     Molecule* res = new Molecule(atom_type, System::types[atom_type], atm.get_id());
     exclude -> insert(atm.get_id());
-    vector<Atom> neighbors = System::grid -> find_neighbors(&atm, *exclude, System::cutoffs);
-    for(Atom& loop_atm : neighbors){
+    vector<tuple<Atom, float>> neighbors = System::grid -> find_neighbors(&atm, *exclude, System::cutoffs);
+    for(tuple<Atom, float>pair : neighbors){
+        loop_atm = get<Atom>(pair);
+        dist = get<float>(pair);
 //        cout << "Current neighbor is: " << loop_atm.get_id() << endl;
         exclude -> insert(loop_atm.get_id());
         if(prev_atm.get_type() != 1 && loop_atm.get_type() != 3 && loop_atm.get_type() != 4){
-            res -> add_bond(System::scan_molecule(atm, loop_atm, exclude));
+            res -> add_bond(System::scan_molecule(atm, loop_atm, exclude), dist);
             }
         else{
             atom_type = loop_atm.get_type();
-            res -> add_bond(atom_type, System::types[atom_type], loop_atm.get_id());
+            if((atom_type != 3 && atom_type != 4) || loop_atm.Oid == atm.get_id()){
+                res -> add_bond(atom_type, System::types[atom_type], loop_atm.get_id(), dist);
+                }
             }
         }
 //    cout << "Finished lookup for: " << atm.get_id() << "-----------------------" << endl;

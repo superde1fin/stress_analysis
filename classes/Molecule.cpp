@@ -18,10 +18,27 @@ vector<Molecule*> Molecule::get_bonds(){
     return Molecule::bonds;
     }
 
-Molecule* Molecule::add_bond(int type, string type_str, int id){
+Molecule* Molecule::add_bond(int type, string type_str, int id, int dist){
     Molecule* ml = new Molecule(type, type_str, id);
-    ml -> add_bond(this);
-    Molecule::bonds.push_back(ml);
+    Molecule::add_bond(ml, dist, 0);
+    return ml;
+    }
+
+Molecule* Molecule::add_bond(Molecule* ml, int dist){
+    return Molecule::add_bond(ml, dist, 0);
+    }
+
+Molecule* Molecule::add_bond(Molecule* ml, int dist, int rec_ctr){
+    rec_ctr++;
+    int num_bonds = Molecule::bonds.size(), i = 0;
+    while(i < num_bonds && dist < Molecule::distances[i]){
+        i++;
+        }
+    Molecule::bonds.insert(next(Molecule::bonds.begin(), i), ml);
+    Molecule::distances.insert(next(Molecule::distances.begin(), i), dist);
+    if(rec_ctr < 2){
+        ml -> add_bond(this, dist, rec_ctr);
+        }
     return ml;
     }
 
@@ -106,10 +123,6 @@ string Molecule::get_name(){
     return name;
     }
 
-Molecule* Molecule::add_bond(Molecule* ml){
-    Molecule::bonds.push_back(ml);
-    return ml;
-    }
 
 string Molecule::get_type_str(){
     return Molecule::type_str;
@@ -164,16 +177,31 @@ tuple<int, Molecule*> Molecule::closest(int type){
     return Molecule::closest(type, &exclude);
     }
 
-Molecule* Molecule::truncate(int depth, Molecule* parent){
+Molecule* Molecule::truncate(int depth, Molecule* parent, int charge){
+    charge += Molecule::charges[Molecule::type];
     Molecule* result = Molecule::copy();
     if(depth - 1){
-        for(Molecule* ml : Molecule::bonds){
+        float dist;
+        int bonds_size = Molecule::bonds.size();
+        Molecule* ml;
+        for(int i = 0; i < bonds_size; i++){
+            ml = Molecule::bonds[i];
+            dist = Molecule::distances[i];
             if(ml != parent){
-                result -> add_bond(ml -> truncate(depth - 1, this));
+                if(charge + Molecule::charges[ml -> get_type()] < 2){
+                    result -> add_bond(ml -> truncate(depth - 1, this, charge), dist);
+                    }
+                else{
+                    break;
+                    }
                 }
             }
         }
     return result;
+    }
+
+Molecule* Molecule::truncate(int depth){
+    return Molecule::truncate(depth, this, 0);
     }
 
 vector<int> Molecule::get_ids(){
@@ -190,4 +218,8 @@ vector<int> Molecule::get_ids(){
 
 Molecule* Molecule::copy(){
     return new Molecule(Molecule::type, Molecule::type_str, Molecule::id);
+    }
+
+int Molecule::get_id(){
+    return Molecule::id;
     }

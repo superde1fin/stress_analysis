@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include <map>
+#include <tuple>
 
 #include "Atom.hpp"
 #include "Grid.hpp"
@@ -19,9 +20,10 @@ class AtomGrid: public Grid{
         float get_density();
         vector<Atom> get_surface(MaskGrid* mask_ptr);
         float get_cell_volume();
-        void reset_grid(vector<Atom>* atoms_ptr);
+        void reset_grid(vector<Atom>* atoms_ptr, map<int, map<int, float>> cutoffs);
+        tuple<Atom, float> find_closest(Atom* atm);
     private:
-        vector<Atom> find_neighbors(Atom* atm, set<int> exclude, map<int, map<int, float>> cutoffs);
+        vector<tuple<Atom, float>> find_neighbors(Atom* atm, set<int> exclude, map<int, map<int, float>> cutoffs);
         float cell_volume;
         float void_volume;
         float average_density;
