@@ -33,6 +33,8 @@ class System{
         float get_total_comp(int index);
         vector<vector<float>> get_peratom_stress(int index);
         array<float, 2> average_potential(vector<Atom> atoms_studied);
+		vector<Atom> get_species(vector<Atom> studied_atoms, int type);
+		float get_total_potential(vector<Atom> studied_atoms);
     private:
         set<int> exclude;
         Molecule* scan_molecule(Atom prev_atm, Atom atm, set<int>* exclude);
@@ -54,6 +56,7 @@ class System{
         vector<Atom> oxygens;
         vector<Atom> hydrogens;
         int htype;
+        int natype;
 
         void scan_positions(ifstream& contents);
         vector<Atom> filter_surface(vector<Atom> unfiltered);

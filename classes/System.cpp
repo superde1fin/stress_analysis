@@ -22,7 +22,7 @@ using namespace std;
 System::System(array<float, 3> box, ifstream& contents, int atoms_number, array<float, 3> center, array<float, 3> box_shift, int htype, int natype){
     //Ionic settings
     System::htype = htype;
-    System::htype = htype;
+    System::natype = natype;
     System::types[htype] = "H";
     System::types[natype] = "Na";
     System::radii_mapping[htype] = 0.53;
@@ -141,17 +141,15 @@ vector<vector<float>> System::calc_stresses(vector<Atom>& main_atoms, vector<Ato
     AtomGrid* grid = new AtomGrid(System::box, 32, &secondary_atoms);
     //For each modifier atom
     for(Atom& atm : main_atoms){
-        if(atm.get_type() == 1){
-            //Get closest atom
-            closest = grid -> find_closest(&atm);
-            tuple.clear();
-            //Put the distance and stress into a resulting vector
-            tuple.push_back(get<float>(closest));
-            //tuple.push_back(atm.get_ave_stress());
-            tuple.push_back(atm.get_potential());
-            //tuple.push_back(atm.get_stress_comp(2));
-            stress_function.push_back(tuple);
-            }
+        //Get closest atom
+        closest = grid -> find_closest(&atm);
+        tuple.clear();
+        //Put the distance and stress into a resulting vector
+        tuple.push_back(get<float>(closest));
+        //tuple.push_back(atm.get_ave_stress());
+        tuple.push_back(atm.get_potential());
+        //tuple.push_back(atm.get_stress_comp(2));
+        stress_function.push_back(tuple);
         }
     return stress_function;
     }
@@ -170,8 +168,10 @@ vector<vector<float>> System::average_stresses(vector<vector<float>>& stresses, 
 
     int stresses_vect_size = stresses.size();
 
-    int i;
-    for(i = 0; i < stresses_vect_size && stresses[i][0] < low_bound; i++){}
+    int i = 0;
+	while(i < stresses_vect_size && stresses[i][0] < low_bound){
+		i++;
+		}
 
     //For each dist-stress pair
     for(; i < stresses_vect_size && stresses[i][0] < up_bound; i++){
@@ -257,33 +257,39 @@ void System::isolate_surface(array<string, 2> header, string filename){
 //Find hydrogen species on the surface
 map<string, float> System::get_surface_species(){
     System::grid -> reset_grid(&(System::atoms), System::cutoffs);
-    int H_ctr = 0;
+    int mod_ctr = 0;
     map<string, int> species_count;
     map<string, float> result;
     Molecule* ml;
     set<int> iter_exclude;
     Atom prev_atm = Atom();
     prev_atm.set_type(0);
+	int total_molecules = 0;
     tuple<int, Molecule*> closestH;
+    tuple<int, Molecule*> closestNa;
+    tuple<int, Molecule*> closestMod;
     Molecule* truncated;
     for(Atom& atm : System::surface_atoms){
         iter_exclude.clear();
         ml = System::scan_molecule(prev_atm, atm, &iter_exclude);
         iter_exclude.clear();
         closestH = ml -> closest(System::htype);
-        if(get<int>(closestH) < 3){
-            truncated = get<Molecule*>(closestH) -> truncate(3);
-            H_ctr++;
+        closestNa = ml -> closest(System::natype);
+		closestMod = get<int>(closestH) < get<int>(closestNa) ? closestH : closestNa;
+        if(get<int>(closestMod) < 3){
+            truncated = get<Molecule*>(closestMod) -> truncate(3);
+            mod_ctr++;
             species_count[truncated -> get_name()]++;
             for(int id : truncated -> get_ids()){
                 System::exclude.insert(id);
                 }
             }
         prev_atm = atm;
+		total_molecules++;
         }
-    cout << "Number of Hydrogen species detected: " << H_ctr << endl;
+    cout << "Number of Modifier species detected: " << mod_ctr << endl;
     for(auto it = species_count.begin(); it != species_count.end(); ++it){
-        result[it -> first] = (it -> second)/(float)System::surface_atoms.size();
+        result[it -> first] = (it -> second)/(float)total_molecules;
         cout << it -> first << " " << result[it -> first] << endl;
         }
     return result;
@@ -303,11 +309,11 @@ Molecule* System::scan_molecule(Atom prev_atm, Atom atm, set<int>* exclude){
         dist = get<float>(pair);
 //        cout << "Current neighbor is: " << loop_atm.get_id() << endl;
         exclude -> insert(loop_atm.get_id());
-        if(prev_atm.get_type() != 1 && loop_atm.get_type() != 3 && loop_atm.get_type() != 4){
+        atom_type = loop_atm.get_type();
+        if(prev_atm.get_type() != 1 && atom_type != 3 && atom_type != 4){
             res -> add_bond(System::scan_molecule(atm, loop_atm, exclude), dist);
             }
         else{
-            atom_type = loop_atm.get_type();
             if((atom_type != 3 && atom_type != 4) || loop_atm.Oid == atm.get_id()){
                 res -> add_bond(atom_type, System::types[atom_type], loop_atm.get_id(), dist);
                 }
@@ -366,3 +372,21 @@ vector<vector<float>> System::get_peratom_stress(int index){
         }
     return result;
     }
+
+vector<Atom> System::get_species(vector<Atom> studied_atoms, int type){
+	vector<Atom> result;
+	for(Atom& atm : studied_atoms){
+		if(atm.get_type() == type){
+			result.push_back(atm);
+			}
+		}
+	return result;
+	}
+
+float System::get_total_potential(vector<Atom> studied_atoms){
+	float potential = 0;
+	for(Atom& atm : studied_atoms){
+		potential += atm.get_potential();
+		}
+	return potential;
+	}
