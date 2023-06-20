@@ -19,8 +19,19 @@ using namespace std;
 
 
 //System class constructor
-System::System(array<float, 3> box, ifstream& contents, int atoms_number, array<float, 3> center, array<float, 3> box_shift, int htype){
+System::System(array<float, 3> box, ifstream& contents, int atoms_number, array<float, 3> center, array<float, 3> box_shift, int htype, int natype){
+    //Ionic settings
     System::htype = htype;
+    System::htype = htype;
+    System::types[htype] = "H";
+    System::types[natype] = "Na";
+    System::radii_mapping[htype] = 0.53;
+    System::radii_mapping[natype] = 2.27;
+    System::cutoffs[2][htype] = 1.1;
+    System::cutoffs[2][natype] = 2.7;
+    System::cutoffs[htype][2] = 1.1;
+    System::cutoffs[natype][2] = 2.7;
+
     System::box = box;
     System::box_shift = box_shift;
     System::center = center;
@@ -96,6 +107,7 @@ void System::scan_positions(ifstream& contents){
         atm -> set_type(stoi(split_line[1]));
         atm -> set_position(array<float, 3>{fmod(stof(split_line[2]) - System::box_shift[0], System::box[0]), fmod(stof(split_line[3]) - System::box_shift[1], System::box[1]), fmod(stof(split_line[4]) - System::box_shift[2], System::box[2])});
         atm -> set_stress_tensor(array<float, 6>{stof(split_line[5]), stof(split_line[6]), stof(split_line[7]),stof(split_line[8]), stof(split_line[9]), stof(split_line[10])});
+        atm -> set_potential(stof(split_line[11]));
         atm -> set_radius(System::radii_mapping[atm -> get_type()]);
         //Add the atom to the system
         System::atoms.push_back(*atm);
@@ -106,7 +118,10 @@ void System::scan_positions(ifstream& contents){
         if(atm -> get_type() == 1){
             System::former_atoms.push_back(*atm);
             }
-        if(atm -> get_type() == htype){
+        if(atm -> get_type() == 2){
+            System::oxygens.push_back(*atm);
+            }
+        if(atm -> get_type() == System::htype){
             System::hydrogens.push_back(*atm);
             }
         delete atm;
@@ -118,27 +133,32 @@ void System::scan_positions(ifstream& contents){
     }
 
 //A function that calculates per atom average stress as a function to the closest modifier
-vector<vector<float>> System::calc_stresses(vector<Atom>& secondary_atoms){
-    cout << "Beginning the surface stress calculations\n\n";
+vector<vector<float>> System::calc_stresses(vector<Atom>& main_atoms, vector<Atom>& secondary_atoms){
+    cout << "Beginning the stress calculations\n\n";
     tuple<Atom, float> closest;
     vector<vector<float>> stress_function;
     vector<float> tuple;
     AtomGrid* grid = new AtomGrid(System::box, 32, &secondary_atoms);
     //For each modifier atom
-    for(Atom& atm : System::former_atoms){
-        //Get closest atom
-        closest = grid -> find_closest(&atm);
-        tuple.clear();
-        //Put the distance and stress into a resulting vector
-        tuple.push_back(get<float>(closest));
-        tuple.push_back(atm.get_ave_stress());
-        stress_function.push_back(tuple);
+    for(Atom& atm : main_atoms){
+        if(atm.get_type() == 1){
+            //Get closest atom
+            closest = grid -> find_closest(&atm);
+            tuple.clear();
+            //Put the distance and stress into a resulting vector
+            tuple.push_back(get<float>(closest));
+            //tuple.push_back(atm.get_ave_stress());
+            tuple.push_back(atm.get_potential());
+            //tuple.push_back(atm.get_stress_comp(2));
+            stress_function.push_back(tuple);
+            }
         }
     return stress_function;
     }
 
 //Average the stresses by distance regions
-vector<vector<float>> System::average_stresses(float binwidth, vector<vector<float>>& stresses){
+vector<vector<float>> System::average_stresses(vector<vector<float>>& stresses, float low_bound, float up_bound){
+    float binwidth = (up_bound - low_bound)/20;
     //Sort the stresses vector by distance to closest modifier
     sort(stresses.begin(), stresses.end(), [=](vector<float>& vect1, vector<float>& vect2){return vect1[0] < vect2[0];});
     float temp_stress_value = 0.0;
@@ -149,8 +169,12 @@ vector<vector<float>> System::average_stresses(float binwidth, vector<vector<flo
     vector<float> tuple;
 
     int stresses_vect_size = stresses.size();
+
+    int i;
+    for(i = 0; i < stresses_vect_size && stresses[i][0] < low_bound; i++){}
+
     //For each dist-stress pair
-    for(int i = 0; i < stresses_vect_size; i++){
+    for(; i < stresses_vect_size && stresses[i][0] < up_bound; i++){
         //If in the next distance region
         if(prev_dist < group_number*binwidth && stresses[i][0] > group_number*binwidth){
             tuple.clear();
@@ -187,11 +211,31 @@ vector<vector<float>> System::average_stresses(float binwidth, vector<vector<flo
 
 //Calculate average stress of all atoms
 float System::system_stress(){
-    float total_stress = 0;
+    float total_stress_x = 0;
+    float total_stress_y = 0;
+    float total_stress_z = 0;
     for(Atom& atm : System::atoms){
-        total_stress += atm.get_ave_stress();
+        total_stress_x += atm.get_stress_comp(0);
+        total_stress_y += atm.get_stress_comp(1);
+        total_stress_z += atm.get_stress_comp(2);
         }
-    return total_stress/System::atoms_number;
+    return pow(pow(total_stress_x, 2) + pow(total_stress_y, 2) + pow(total_stress_z, 2), 0.5)/(10*System::get_volume());
+//    return total_stress_z/(10*System::get_volume());
+    }
+
+array<float, 2> System::average_potential(vector<Atom> atoms_studied){
+    float potential = 0;
+    float deviation_sum = 0;
+    int numatoms = atoms_studied.size();
+    for(Atom& atm : atoms_studied){
+        potential += atm.get_potential();
+        }
+    float mean = potential/numatoms;
+    for(Atom& atm : atoms_studied){
+        deviation_sum += (float)pow(atm.get_potential() - mean, 2);
+        }
+    array<float, 2>result = {mean, (float)pow(deviation_sum/numatoms, 0.5)};
+    return result;
     }
 
 //Isolate the surface to assess visually
@@ -279,4 +323,46 @@ vector<Atom> System::get_hydrogens(){
 
 vector<Atom> System::get_modifiers(){
     return System::modifiers;
+    }
+
+vector<Atom> System::get_formers(){
+    return System::former_atoms;
+    }
+
+vector<Atom> System::get_oxygens(){
+    return System::oxygens;
+    }
+
+float System::get_volume(){
+    return System::box[0]*System::box[1]*System::box[2];
+    }
+
+int System::count_species(vector<Atom> sample, int type){
+    int ctr = 0;
+    for(Atom& atm : sample){
+        if(atm.get_type() == type){
+            ctr++;
+            }
+        }
+    return ctr;
+    }
+
+float System::get_total_comp(int index){
+    float total = 0;
+    for(Atom& atm : System::atoms){
+        total += atm.get_stress_comp(index);
+        }
+    return total/(10*System::get_volume());
+    }
+
+vector<vector<float>> System::get_peratom_stress(int index){
+    vector<vector<float>> result;
+    vector<float> atom_stress;
+    for(Atom& atm : System::atoms){
+        atom_stress.clear();
+        atom_stress.push_back((float)(atm.get_id()));
+        atom_stress.push_back((float)(atm.get_stress_comp(index)));
+        result.push_back(atom_stress);
+        }
+    return result;
     }

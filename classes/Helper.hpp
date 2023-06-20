@@ -20,6 +20,7 @@ class Helper{
         static float dist(array<float, 3>atom1, array<float, 3> atom2, array<float, 3> box);
         static tuple<Atom, float> find_closest(Atom atm, vector<Atom> to_compare, array<float, 3> box);
         static void vector2d_csv(string name, string first_line, vector<vector<float>> vect);
+        static void vector2d_csv(string name, string first_line, vector<vector<float>> vect, vector<string> first_col);
         static void vector_of_maps2csv(string name, vector<map<string, float>> vect, vector<string>first_col);
         template <typename T>
         static string to_str(T value ){

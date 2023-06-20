@@ -33,7 +33,7 @@ string get_box(ifstream& contents, array<float, 3>& box, array<float, 3>& box_sh
         }
     return combined_lines;
     }
-vector<float> analysis(string file_location, string destination, string filename, bool iso_surface, float void_volume, int htype){
+tuple<vector<float>, map<string, float>> analysis(string file_location, string destination, string filename, bool iso_surface, float void_volume, int htype, int natype){
     ifstream contents(file_location + filename);
     string line;
     int atoms_number;
@@ -43,13 +43,16 @@ vector<float> analysis(string file_location, string destination, string filename
     array<float, 3> center;
     vector<vector<float>> total_stresses;
     vector<vector<float>> average_stresses;
+    vector<vector<float>> peratom_stresses;
     vector<float> result;
     map<string, float> species;
     array<string, 2> header = {"", ""};
     int header_ctr = 0;
     vector<Atom> modifiers;
     vector<Atom> hydrogens;
-    vector<Atom> surface;
+    vector<Atom> surface; 
+    vector<Atom> bulk; 
+    array<float, 2> potential_result;
     //Scan through lines
     while(getline(contents, line)){
         //Record header for surface recreation
@@ -66,37 +69,35 @@ vector<float> analysis(string file_location, string destination, string filename
             }
         if(Helper::string_contains(line, "ITEM: ATOMS")){
             //Create a system object
-            System* atom_system = new System(box, contents, atoms_number, center, box_shift, htype);
+            System* atom_system = new System(box, contents, atoms_number, center, box_shift, htype, natype);
             //Run the surface detection
             surface = atom_system -> detect_surface(void_volume);
             //If specified, create the surface file
             if(iso_surface){
                 atom_system -> isolate_surface(header, destination + "surfaces/surface." + filename);
                 }
+//-----------------SURFACE
             //MODIFIERS BASED STRESS
             modifiers = atom_system -> get_modifiers();
             //Run the stress calculator based on modifiers
-            total_stresses = atom_system -> calc_stresses(modifiers);
+            total_stresses = atom_system -> calc_stresses(surface, modifiers);
             //Record the atom stresses into a csv
-            Helper::vector2d_csv(destination + "modifiers/total/" + filename, "Distance to closest modifier, Stress", total_stresses);
+            Helper::vector2d_csv(destination + "surface/modifiers/total/" + filename, "Distance to closest modifier, Potential Energy", total_stresses);
             //Condense the data and average stress based on distance ranges
-            average_stresses = atom_system -> average_stresses(binwidth, total_stresses);
-            Helper::vector2d_csv(destination + "modifiers/averaged/" + filename, "Bin span, Stress, Atom count", average_stresses);
-            //HYDROGENS BASED STRESS
-            hydrogens = atom_system -> get_hydrogens();
-            //Run the stress calculator based on modifiers
-            total_stresses = atom_system -> calc_stresses(hydrogens);
-            //Record the atom stresses into a csv
-            Helper::vector2d_csv(destination + "hydrogens/total/" + filename, "Distance to closest modifier, Stress", total_stresses);
-            //Condense the data and average stress based on distance ranges
-            average_stresses = atom_system -> average_stresses(binwidth, total_stresses);
-            Helper::vector2d_csv(destination + "hydrogens/averaged/" + filename, "Bin span, Stress, Atom count", average_stresses);
-            //Record the box dimension and average stress in the result to create the stress-strain curve
+            average_stresses = atom_system -> average_stresses(total_stresses, 2.0, 4.0);
+            Helper::vector2d_csv(destination + "surface/modifiers/averaged/" + filename, "Bin span, Potential Energy, Atom count", average_stresses);
             result.push_back(box[2]);
-            result.push_back(atom_system -> system_stress());
+            potential_result = atom_system -> average_potential(atom_system -> get_formers());
+            result.push_back(potential_result[0]);
+            result.push_back(potential_result[1]);
+            potential_result = atom_system -> average_potential(atom_system -> get_oxygens());
+            result.push_back(potential_result[0]);
+            result.push_back(potential_result[1]);
+            result.push_back((float)(atom_system -> count_species(surface, htype)));
+            result.push_back((float)(atom_system -> count_species(surface, natype)));
             }
         }
-    return result;
+    return make_tuple(result, species);
     }
 
 int main(int argc, char** argv){
@@ -106,9 +107,13 @@ int main(int argc, char** argv){
     string void_volume(argv[2]);
     //Record hydrogen type
     string htype(argv[3]);
+    //Record sodium type
+    string natype(argv[4]);
     //Create the file system object
     fs::path cwd = fs::current_path();
-    vector<vector<float>> stresses;
+    tuple<vector<float>, map<string, float>> analysis_result;
+    vector<map<string, float>> surface_species;
+    vector<vector<float>> system_output;
     //Check if the inputted name is a pattern
     if(Helper::string_contains(input, "*")){
         //Check whether the files are in a subdirectory
@@ -126,32 +131,58 @@ int main(int argc, char** argv){
             //Create the subdirectories to store the results
             string destination = "analysis";
             fs::create_directory(cwd/destination);
-            fs::create_directory(cwd/destination/"modifiers");
-            fs::create_directory(cwd/destination/"hydrogens");
-            fs::create_directory(cwd/destination/"modifiers/total");
-            fs::create_directory(cwd/destination/"modifiers/averaged");
-            fs::create_directory(cwd/destination/"hydrogens/total");
-            fs::create_directory(cwd/destination/"hydrogens/averaged");
-            fs::create_directory(cwd/destination/"surfaces");
+            fs::create_directory(cwd/destination/"bulk");
+            fs::create_directory(cwd/destination/"surface");
+//            fs::create_directory(cwd/destination/"XX_stresses");
+//            fs::create_directory(cwd/destination/"YY_stresses");
+//            fs::create_directory(cwd/destination/"ZZ_stresses");
+//            fs::create_directory(cwd/destination/"bulk/modifiers");
+//            fs::create_directory(cwd/destination/"bulk/hydrogens");
+//            fs::create_directory(cwd/destination/"bulk/modifiers/total");
+//            fs::create_directory(cwd/destination/"bulk/modifiers/averaged");
+//            fs::create_directory(cwd/destination/"bulk/hydrogens/total");
+//            fs::create_directory(cwd/destination/"bulk/hydrogens/averaged");
+            fs::create_directory(cwd/destination/"surface/modifiers");
+//            fs::create_directory(cwd/destination/"surface/hydrogens");
+            fs::create_directory(cwd/destination/"surface/modifiers/total");
+            fs::create_directory(cwd/destination/"surface/modifiers/averaged");
+//            fs::create_directory(cwd/destination/"surface/hydrogens/total");
+//            fs::create_directory(cwd/destination/"surface/hydrogens/averaged");
+//            fs::create_directory(cwd/destination/"surfaces");
             //For each file that matches the pattern perform the stress calculations
             vector<string> pattern_fillers;
             for(string& filename : Helper::files_by_pattern(file_location, pattern, &pattern_fillers, true)){
                 cout << "Starting the stress analysis for: " << filename << endl << endl;
+                analysis_result = analysis(file_location, destination + "/", filename, false, stof(void_volume), stoi(htype), stoi(natype));
                 //Store the stress and strain in a csv file
-                cout << "test\n";
-                stresses.push_back(analysis(file_location, destination + "/", filename, true, stof(void_volume), stoi(htype)));
-                Helper::vector2d_csv(destination + "/stress_strain", "Box z, Ave Stress", stresses);
+                system_output.push_back(get<vector<float>>(analysis_result));
+                surface_species.push_back(get<map<string, float>>(analysis_result));
+                Helper::vector2d_csv(destination + "/system_output", "Timestep, Box z, Average Potential Energy on Surface Si, Standard Deviation, Average Potential Energy on Surface O, Standard Deviation, H num, Na num", system_output, pattern_fillers);
+//                Helper::vector_of_maps2csv(destination + "/species", surface_species, pattern_fillers);
                 }
             }
         }else{
             //One file case
-            fs::create_directory(cwd/"modifiers/total");
-            fs::create_directory(cwd/"modifiers/averaged");
-            fs::create_directory(cwd/"hydrogens/total");
-            fs::create_directory(cwd/"hydrogens/averaged");
+            fs::create_directory(cwd/"bulk");
+            fs::create_directory(cwd/"surface");
+            fs::create_directory(cwd/"XX_stresses");
+            fs::create_directory(cwd/"YY_stresses");
+            fs::create_directory(cwd/"ZZ_stresses");
+            fs::create_directory(cwd/"bulk/modifiers");
+            fs::create_directory(cwd/"bulk/hydrogens");
+            fs::create_directory(cwd/"bulk/modifiers/total");
+            fs::create_directory(cwd/"bulk/modifiers/averaged");
+            fs::create_directory(cwd/"bulk/hydrogens/total");
+            fs::create_directory(cwd/"bulk/hydrogens/averaged");
+            fs::create_directory(cwd/"surface/modifiers");
+            fs::create_directory(cwd/"surface/hydrogens");
+            fs::create_directory(cwd/"surface/modifiers/total");
+            fs::create_directory(cwd/"surface/modifiers/averaged");
+            fs::create_directory(cwd/"surface/hydrogens/total");
+            fs::create_directory(cwd/"surface/hydrogens/averaged");
             fs::create_directory(cwd/"surfaces");
             cout << "Starting the stress analysis for: " << input << endl << endl;
-            analysis("./", "./", input, true, stof(void_volume), stoi(htype));
+            analysis("./", "./", input, true, stof(void_volume), stoi(htype), stoi(natype));
             }
     return 0;
     }

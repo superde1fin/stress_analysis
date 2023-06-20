@@ -210,9 +210,6 @@ vector<tuple<Atom, float>> AtomGrid::find_neighbors(Atom* atm, set<int> exclude,
                             dist = Helper::dist(atom_position, atm_ptr -> get_position(), AtomGrid::box);
 //                            cout << atm_ptr -> get_id() << " " << dist << " " << atm_ptr -> get_type() <<  endl;
                             if(dist > max_dist){max_dist = dist;}
-                            if(atm -> get_id() == 52892 && atm_ptr -> get_id() == 79){
-                                cout << dist << " " << !Helper::element_in(atm_ptr -> get_id(), exclude) << endl;
-                                }
                             if(dist < cutoffs[atm_ptr -> get_type()][atm -> get_type()] && !Helper::element_in(atm_ptr -> get_id(), exclude) && atm -> get_id() != atm_ptr -> get_id()){
                                 if((atm -> get_type() == 3 || atm -> get_type() == 4) && dist < min_modifyier_dist){
                                     min_modifyier_dist = dist;

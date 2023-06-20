@@ -106,6 +106,30 @@ tuple<Atom, float> Helper::find_closest(Atom atm, vector<Atom> to_compare, array
         }
     return make_tuple(key, min);
     }
+//Record the contents of a 2d vector in a csv file
+void Helper::vector2d_csv(string name, string first_line, vector<vector<float>> vect, vector<string> first_col){
+    char comma;
+    float word;
+    int line_length;
+    vector<float> line;
+
+    first_line += '\n';
+    for (int j = 0; j < (int)vect.size(); j++){
+        line = vect[j];
+        comma = ',';
+        line_length = (int)line.size();
+        first_line += (first_col[j] + ",");
+        for (int i = 0; i < line_length; i++){
+            word = line[i];
+            if (i == line_length - 1){comma = '\n';}
+            first_line += to_str(word) + comma;
+            }
+        }
+    ofstream myfile;
+    myfile.open(name + ".csv");
+    myfile << first_line;
+    myfile.close();
+    }
 
 //Record the contents of a 2d vector in a csv file
 void Helper::vector2d_csv(string name, string first_line, vector<vector<float>> vect){

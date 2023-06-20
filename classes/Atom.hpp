@@ -11,6 +11,7 @@ class Atom{
         float x;
         float y;
         float z;
+        float potential;
         array<float, 6> stress_tensor;
         float radius;
         string pure_line;
@@ -25,6 +26,7 @@ class Atom{
         void set_stress_tensor(array<float, 6> stresss_tensor);
         void set_radius(float radius);
         void set_pure_line(string line);
+        void set_potential(float potential);
 
     public:
         //Getters
@@ -35,6 +37,8 @@ class Atom{
         float get_x();
         float get_y();
         float get_z();
+        float get_stress_comp(int index);
+        float get_potential();
         string get_pure_line();
     friend class System;
     friend class AtomGrid;

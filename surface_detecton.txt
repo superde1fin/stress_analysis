@@ -1,5 +1,5 @@
 1)Split the simmulation box into a 3d grid
 2)Add the atoms to grid cells if not masked (initially all unmasked)
-3)Cnvert the old mask to a current mask (keys are integer values relative to grid size)
-4)Loop through unmasked cells ecording atoms neighboring empty cells and masking cells that have two full cell layers around them
+3)Convert the old mask to a current mask (keys are integer values relative to grid size)
+4)Loop through unmasked cells recording atoms neighboring empty cells and masking cells that have two full cell layers around them
 5)Itterate until grid cell volume is larger than the specified minimum void volume
