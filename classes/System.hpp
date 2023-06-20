@@ -21,7 +21,8 @@ class System{
 
         vector<Atom> detect_surface(float void_volume);
         vector<vector<float>> calc_stresses(vector<Atom>& main_atoms, vector<Atom>& secondary_atoms);
-        vector<vector<float>> average_stresses(vector<vector<float>>& stresses, float low_bound, float up_bound);
+        vector<vector<float>> calc_potentials(vector<Atom>& main_atoms, vector<Atom>& secondary_atoms);
+        vector<vector<float>> average_property(vector<vector<float>>& stresses, float low_bound, float up_bound);
         float system_stress();
         void isolate_surface(array<string, 2> header, string filename);
         map<string, float> get_surface_species();

@@ -267,8 +267,14 @@ void AtomGrid::reset_grid(vector<Atom>* atoms_ptr, map<int, map<int, float>> cut
         }
     }
 
-//Finds closest atom in the grid
+
 tuple<Atom, float> AtomGrid::find_closest(Atom* atm){
+    set<int> exclude;
+    return AtomGrid::find_closest(atm, exclude);
+    }
+
+//Finds closest atom in the grid
+tuple<Atom, float> AtomGrid::find_closest(Atom* atm, set<int>& exclude){
     array<float, 3> atom_position = atm -> get_position();
     int depth = 1;
     tuple<Atom, float> closest;
@@ -284,7 +290,7 @@ tuple<Atom, float> AtomGrid::find_closest(Atom* atm){
                     if(AtomGrid::grid_map.count(key)){
                         for(Atom* atm_ptr : AtomGrid::grid_map[key]-> atoms){
                             dist = Helper::dist(atom_position, atm_ptr -> get_position(), AtomGrid::box);
-                            if(dist < min_dist && atm_ptr -> get_id() != atm -> get_id()){
+                            if(dist < min_dist && atm_ptr -> get_id() != atm -> get_id() && !Helper::element_in(atm_ptr -> get_id(), exclude)){
                                 min_dist = dist;
                                 closest = make_tuple(*atm_ptr,dist);
                                 }

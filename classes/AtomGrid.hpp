@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <map>
 #include <tuple>
+#include <set>
 
 #include "Atom.hpp"
 #include "Grid.hpp"
@@ -17,6 +18,7 @@ class AtomGrid: public Grid{
         AtomGrid(array<float, 3> box, int num_splits, vector<Atom>* atoms_ptr, MaskGrid* mask_ptr, map<int, float> radii_mapping, float void_volume);
         AtomGrid(array<float, 3> box, int num_splits, vector<Atom>* atoms_ptr);
         tuple<Atom, float> find_closest(Atom* atm);
+        tuple<Atom, float> find_closest(Atom* atm, set<int>& exclude);
         int get_status(int key_x, int key_y, int key_z);
         void add_atom(int key_x, int key_y, int key_z, Atom* atm_ptr);
         float get_density();

@@ -133,6 +133,26 @@ void System::scan_positions(ifstream& contents){
     }
 
 //A function that calculates per atom average stress as a function to the closest modifier
+vector<vector<float>> System::calc_potentials(vector<Atom>& main_atoms, vector<Atom>& secondary_atoms){
+    cout << "Beginning the potential energy calculations\n\n";
+    tuple<Atom, float> closest;
+    vector<vector<float>> stress_function;
+    vector<float> tuple;
+    AtomGrid* grid = new AtomGrid(System::box, 32, &secondary_atoms);
+    //For each modifier atom
+    for(Atom& atm : main_atoms){
+        //Get closest atom
+        closest = grid -> find_closest(&atm);
+        tuple.clear();
+        //Put the distance and stress into a resulting vector
+        tuple.push_back(get<float>(closest));
+        tuple.push_back(atm.get_potential());
+        stress_function.push_back(tuple);
+        }
+    return stress_function;
+    }
+
+//A function that calculates per atom average stress as a function to the closest modifier
 vector<vector<float>> System::calc_stresses(vector<Atom>& main_atoms, vector<Atom>& secondary_atoms){
     cout << "Beginning the stress calculations\n\n";
     tuple<Atom, float> closest;
@@ -146,16 +166,14 @@ vector<vector<float>> System::calc_stresses(vector<Atom>& main_atoms, vector<Ato
         tuple.clear();
         //Put the distance and stress into a resulting vector
         tuple.push_back(get<float>(closest));
-        //tuple.push_back(atm.get_ave_stress());
-        tuple.push_back(atm.get_potential());
-        //tuple.push_back(atm.get_stress_comp(2));
+        tuple.push_back(atm.get_stress_comp(2));
         stress_function.push_back(tuple);
         }
     return stress_function;
     }
 
 //Average the stresses by distance regions
-vector<vector<float>> System::average_stresses(vector<vector<float>>& stresses, float low_bound, float up_bound){
+vector<vector<float>> System::average_property(vector<vector<float>>& stresses, float low_bound, float up_bound){
     float binwidth = (up_bound - low_bound)/20;
     //Sort the stresses vector by distance to closest modifier
     sort(stresses.begin(), stresses.end(), [=](vector<float>& vect1, vector<float>& vect2){return vect1[0] < vect2[0];});
@@ -254,6 +272,7 @@ void System::isolate_surface(array<string, 2> header, string filename){
     myfile.close();
     }
 
+/*
 //Find hydrogen species on the surface
 map<string, float> System::get_surface_species(){
     System::grid -> reset_grid(&(System::atoms), System::cutoffs);
@@ -282,6 +301,9 @@ map<string, float> System::get_surface_species(){
             species_count[truncated -> get_name()]++;
             for(int id : truncated -> get_ids()){
                 System::exclude.insert(id);
+                if(truncated -> get_name() == "O(1)H(1)"){
+                    cout << id << endl;
+                    }
                 }
             }
         prev_atm = atm;
@@ -290,6 +312,56 @@ map<string, float> System::get_surface_species(){
     cout << "Number of Modifier species detected: " << mod_ctr << endl;
     for(auto it = species_count.begin(); it != species_count.end(); ++it){
         result[it -> first] = (it -> second)/(float)total_molecules;
+        cout << it -> first << " " << result[it -> first] << endl;
+        }
+    return result;
+    }
+*/
+
+//Oxygen neighbor analysis
+map<string, float> System::get_surface_species(){
+    System::grid -> reset_grid(&(System::atoms), System::cutoffs);
+    map<string, int> species_count;
+    map<string, float> result;
+    set<int> exclude;
+    map<int, int> oxygen_neighbors;
+    string name;
+    vector<Atom> surface_oxygens = System::get_species(System::surface_atoms, 2);
+    vector<tuple<Atom, float>> neighbors;
+    int ox_id, si_id;
+    int neigh_type;
+    tuple<Atom, float> closest;
+    for(Atom& atm : surface_oxygens){
+        exclude.clear();
+        name = "";
+        ox_id = atm.get_id();
+        oxygen_neighbors.clear();
+        neighbors = System::grid -> find_neighbors(&atm, exclude, System::cutoffs);
+        for(tuple<Atom, float>pair : neighbors){
+            neigh_type = get<Atom>(pair).get_type();
+            if(neigh_type == 1){si_id = get<Atom>(pair).get_id();}
+            if((neigh_type != System::htype && neigh_type != System::natype) || get<Atom>(pair).Oid == ox_id){
+                oxygen_neighbors[neigh_type]++;
+                }
+            }
+        for(auto it = oxygen_neighbors.begin(); it != oxygen_neighbors.end(); ++it){
+            name += (System::types[it -> first] + "(" + Helper::to_str(it -> second) + ")");
+            }
+        if(name == ""){
+            name = "(-)";
+            }
+        if(name == "Si(1)"){
+            exclude.insert(si_id);
+            closest = System::grid -> find_closest(&atm, exclude);
+            if(get<float>(closest) <= 1.3*(System::radii_mapping[2] + System::radii_mapping[get<Atom>(closest).get_type()])){
+                species_count["NBO - " + System::types[get<Atom>(closest).get_type()]]++;
+                }
+            }
+        species_count[name]++;
+        }
+    int total_oxygens = surface_oxygens.size();
+    for(auto it = species_count.begin(); it != species_count.end(); ++it){
+        result[it -> first] = (it -> second)/(float)total_oxygens;
         cout << it -> first << " " << result[it -> first] << endl;
         }
     return result;
@@ -310,11 +382,13 @@ Molecule* System::scan_molecule(Atom prev_atm, Atom atm, set<int>* exclude){
 //        cout << "Current neighbor is: " << loop_atm.get_id() << endl;
         exclude -> insert(loop_atm.get_id());
         atom_type = loop_atm.get_type();
-        if(prev_atm.get_type() != 1 && atom_type != 3 && atom_type != 4){
+        //Continue if did not hit modifier (+1 charge) and if silicon is not the previous atom.
+        if(prev_atm.get_type() != 1 && atom_type != System::htype && atom_type != System::natype){
             res -> add_bond(System::scan_molecule(atm, loop_atm, exclude), dist);
             }
+        //Add terminating bond to silicon neighbor or correct oxygen neighbor
         else{
-            if((atom_type != 3 && atom_type != 4) || loop_atm.Oid == atm.get_id()){
+            if(atom_type != 3 && atom_type != 4){
                 res -> add_bond(atom_type, System::types[atom_type], loop_atm.get_id(), dist);
                 }
             }

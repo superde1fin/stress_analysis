@@ -76,18 +76,51 @@ tuple<vector<float>, map<string, float>> analysis(string file_location, string d
                 }
 
             result.push_back(box[2]);
-/*
+//----------Stresses on surface silicons
             modifiers = atom_system -> get_modifiers();
 			atomic_species = atom_system -> get_species(surface, 1);
             //Run the stress calculator based on modifiers
             total_stresses = atom_system -> calc_stresses(atomic_species, modifiers);
             //Record the atom stresses into a csv
-            Helper::vector2d_csv(destination + "total/" + filename, "Distance to closest modifier, ZZ stress", total_stresses);
+            Helper::vector2d_csv(destination + "stresses/silicon/total/" + filename, "Distance to closest modifier, ZZ stress", total_stresses);
             //Condense the data and average stress based on distance ranges
-            average_stresses = atom_system -> average_stresses(total_stresses, 2.0, 4.0);
-            Helper::vector2d_csv(destination + "averaged/" + filename, "Bin span, ZZ stress, Atom count", average_stresses);
+            average_stresses = atom_system -> average_property(total_stresses, 2.0, 4.0);
+            Helper::vector2d_csv(destination + "stresses/silicon/averaged/" + filename, "Bin span, ZZ stress, Atom count", average_stresses);
+//----------Potential on surface silicons
+            //Run the stress calculator based on modifiers
+            total_stresses = atom_system -> calc_potentials(atomic_species, modifiers);
+            //Record the atom stresses into a csv
+            Helper::vector2d_csv(destination + "potentials/silicon/total/" + filename, "Distance to closest modifier, Potential Energy", total_stresses);
+            //Condense the data and average stress based on distance ranges
+            average_stresses = atom_system -> average_property(total_stresses, 2.0, 4.0);
+            Helper::vector2d_csv(destination + "potentials/silicon/averaged/" + filename, "Bin span, ZZ stress, Atom count", average_stresses);
 
-*/
+//----------Stresses on surface oxygens
+			atomic_species = atom_system -> get_species(surface, 2);
+            //Run the stress calculator based on modifiers
+            total_stresses = atom_system -> calc_stresses(atomic_species, modifiers);
+            //Record the atom stresses into a csv
+            Helper::vector2d_csv(destination + "stresses/oxygen/total/" + filename, "Distance to closest modifier, ZZ stress", total_stresses);
+            //Condense the data and average stress based on distance ranges
+            average_stresses = atom_system -> average_property(total_stresses, 2.0, 4.0);
+            Helper::vector2d_csv(destination + "stresses/oxygen/averaged/" + filename, "Bin span, ZZ stress, Atom count", average_stresses);
+//----------Potential on surface oxygens
+            //Run the stress calculator based on modifiers
+            total_stresses = atom_system -> calc_potentials(atomic_species, modifiers);
+            //Record the atom stresses into a csv
+            Helper::vector2d_csv(destination + "potentials/oxygen/total/" + filename, "Distance to closest modifier, Potential Energy", total_stresses);
+            //Condense the data and average stress based on distance ranges
+            average_stresses = atom_system -> average_property(total_stresses, 2.0, 4.0);
+            Helper::vector2d_csv(destination + "potentials/oxygen/averaged/" + filename, "Bin span, ZZ stress, Atom count", average_stresses);
+
+            result.push_back(atom_system -> get_total_comp(2));
+            result.push_back((float)atom_system -> count_species(surface, 1));
+            result.push_back((float)atom_system -> count_species(surface, 2));
+            result.push_back((float)atom_system -> count_species(surface, htype));
+            result.push_back((float)atom_system -> count_species(surface, natype));
+
+
+
 			//Get a map of molecular species on the surface
 			species = atom_system -> get_surface_species();
             }
@@ -126,8 +159,21 @@ int main(int argc, char** argv){
             //Create the subdirectories to store the results
             string destination = "analysis";
             fs::create_directory(cwd/destination);
-            fs::create_directory(cwd/destination/"averaged");
-            fs::create_directory(cwd/destination/"total");
+            fs::create_directory(cwd/destination/"potentials");
+            fs::create_directory(cwd/destination/"stresses");
+            fs::create_directory(cwd/destination/"surfaces");
+            fs::create_directory(cwd/destination/"potentials/silicon");
+            fs::create_directory(cwd/destination/"stresses/silicon");
+            fs::create_directory(cwd/destination/"potentials/oxygen");
+            fs::create_directory(cwd/destination/"stresses/oxygen");
+            fs::create_directory(cwd/destination/"potentials/silicon/averaged");
+            fs::create_directory(cwd/destination/"potentials/silicon/total");
+            fs::create_directory(cwd/destination/"stresses/silicon/averaged");
+            fs::create_directory(cwd/destination/"stresses/silicon/total");
+            fs::create_directory(cwd/destination/"potentials/oxygen/averaged");
+            fs::create_directory(cwd/destination/"potentials/oxygen/total");
+            fs::create_directory(cwd/destination/"stresses/oxygen/averaged");
+            fs::create_directory(cwd/destination/"stresses/oxygen/total");
             //For each file that matches the pattern perform the stress calculations
             vector<string> pattern_fillers;
             for(string& filename : Helper::files_by_pattern(file_location, pattern, &pattern_fillers, true)){
@@ -136,30 +182,29 @@ int main(int argc, char** argv){
                 //Store the stress and strain in a csv file
                 system_output.push_back(get<vector<float>>(analysis_result));
                 surface_species.push_back(get<map<string, float>>(analysis_result));
-//                Helper::vector2d_csv(destination + "/system_output", "Timestep, Box z, Average Potential Energy on Surface Si, Standard Deviation, Average Potential Energy on Surface O, Standard Deviation, Si num, O num, H num, Na num", system_output, pattern_fillers);
+                Helper::vector2d_csv(destination + "/system_output", "Timestep, Box z, Stress ZZ, Si num, O num, H num, Na num", system_output, pattern_fillers);
                 Helper::vector_of_maps2csv(destination + "/species", surface_species, pattern_fillers);
                 }
             }
         }else{
             //One file case
-            fs::create_directory(cwd/"bulk");
-            fs::create_directory(cwd/"surface");
-            fs::create_directory(cwd/"XX_stresses");
-            fs::create_directory(cwd/"YY_stresses");
-            fs::create_directory(cwd/"ZZ_stresses");
-            fs::create_directory(cwd/"bulk/modifiers");
-            fs::create_directory(cwd/"bulk/hydrogens");
-            fs::create_directory(cwd/"bulk/modifiers/total");
-            fs::create_directory(cwd/"bulk/modifiers/averaged");
-            fs::create_directory(cwd/"bulk/hydrogens/total");
-            fs::create_directory(cwd/"bulk/hydrogens/averaged");
-            fs::create_directory(cwd/"surface/modifiers");
-            fs::create_directory(cwd/"surface/hydrogens");
-            fs::create_directory(cwd/"surface/modifiers/total");
-            fs::create_directory(cwd/"surface/modifiers/averaged");
-            fs::create_directory(cwd/"surface/hydrogens/total");
-            fs::create_directory(cwd/"surface/hydrogens/averaged");
-            fs::create_directory(cwd/"surfaces");
+            string destination = "analysis";
+            fs::create_directory(cwd/destination);
+            fs::create_directory(cwd/destination/"potentials");
+            fs::create_directory(cwd/destination/"stresses");
+            fs::create_directory(cwd/destination/"surfaces");
+            fs::create_directory(cwd/destination/"potentials/silicon");
+            fs::create_directory(cwd/destination/"stresses/silicon");
+            fs::create_directory(cwd/destination/"potentials/oxygen");
+            fs::create_directory(cwd/destination/"stresses/oxygen");
+            fs::create_directory(cwd/destination/"potentials/silicon/averaged");
+            fs::create_directory(cwd/destination/"potentials/silicon/total");
+            fs::create_directory(cwd/destination/"stresses/silicon/averaged");
+            fs::create_directory(cwd/destination/"stresses/silicon/total");
+            fs::create_directory(cwd/destination/"potentials/oxygen/averaged");
+            fs::create_directory(cwd/destination/"potentials/oxygen/total");
+            fs::create_directory(cwd/destination/"stresses/oxygen/averaged");
+            fs::create_directory(cwd/destination/"stresses/oxygen/total");
             cout << "Starting the stress analysis for: " << input << endl << endl;
             analysis("./", "./", input, true, stof(void_volume), stoi(htype), stoi(natype));
             }
