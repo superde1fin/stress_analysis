@@ -43,15 +43,13 @@ tuple<vector<float>, map<string, float>> analysis(string file_location, string d
     array<float, 3> center;
     vector<vector<float>> total_stresses;
     vector<vector<float>> average_stresses;
-    vector<vector<float>> peratom_stresses;
     vector<float> result;
     map<string, float> species;
     array<string, 2> header = {"", ""};
     int header_ctr = 0;
     vector<Atom> modifiers;
-    vector<Atom> hydrogens;
+    vector<Atom> atomic_species;
     vector<Atom> surface; 
-    vector<Atom> bulk; 
     array<float, 2> potential_result;
     //Scan through lines
     while(getline(contents, line)){
@@ -76,25 +74,22 @@ tuple<vector<float>, map<string, float>> analysis(string file_location, string d
             if(iso_surface){
                 atom_system -> isolate_surface(header, destination + "surfaces/surface." + filename);
                 }
-//-----------------SURFACE
-            //MODIFIERS BASED STRESS
+
+            result.push_back(box[2]);
+/*
             modifiers = atom_system -> get_modifiers();
+			atomic_species = atom_system -> get_species(surface, 1);
             //Run the stress calculator based on modifiers
-            total_stresses = atom_system -> calc_stresses(surface, modifiers);
+            total_stresses = atom_system -> calc_stresses(atomic_species, modifiers);
             //Record the atom stresses into a csv
-            Helper::vector2d_csv(destination + "surface/modifiers/total/" + filename, "Distance to closest modifier, Potential Energy", total_stresses);
+            Helper::vector2d_csv(destination + "total/" + filename, "Distance to closest modifier, ZZ stress", total_stresses);
             //Condense the data and average stress based on distance ranges
             average_stresses = atom_system -> average_stresses(total_stresses, 2.0, 4.0);
-            Helper::vector2d_csv(destination + "surface/modifiers/averaged/" + filename, "Bin span, Potential Energy, Atom count", average_stresses);
-            result.push_back(box[2]);
-            potential_result = atom_system -> average_potential(atom_system -> get_formers());
-            result.push_back(potential_result[0]);
-            result.push_back(potential_result[1]);
-            potential_result = atom_system -> average_potential(atom_system -> get_oxygens());
-            result.push_back(potential_result[0]);
-            result.push_back(potential_result[1]);
-            result.push_back((float)(atom_system -> count_species(surface, htype)));
-            result.push_back((float)(atom_system -> count_species(surface, natype)));
+            Helper::vector2d_csv(destination + "averaged/" + filename, "Bin span, ZZ stress, Atom count", average_stresses);
+
+*/
+			//Get a map of molecular species on the surface
+			species = atom_system -> get_surface_species();
             }
         }
     return make_tuple(result, species);
@@ -131,34 +126,18 @@ int main(int argc, char** argv){
             //Create the subdirectories to store the results
             string destination = "analysis";
             fs::create_directory(cwd/destination);
-            fs::create_directory(cwd/destination/"bulk");
-            fs::create_directory(cwd/destination/"surface");
-//            fs::create_directory(cwd/destination/"XX_stresses");
-//            fs::create_directory(cwd/destination/"YY_stresses");
-//            fs::create_directory(cwd/destination/"ZZ_stresses");
-//            fs::create_directory(cwd/destination/"bulk/modifiers");
-//            fs::create_directory(cwd/destination/"bulk/hydrogens");
-//            fs::create_directory(cwd/destination/"bulk/modifiers/total");
-//            fs::create_directory(cwd/destination/"bulk/modifiers/averaged");
-//            fs::create_directory(cwd/destination/"bulk/hydrogens/total");
-//            fs::create_directory(cwd/destination/"bulk/hydrogens/averaged");
-            fs::create_directory(cwd/destination/"surface/modifiers");
-//            fs::create_directory(cwd/destination/"surface/hydrogens");
-            fs::create_directory(cwd/destination/"surface/modifiers/total");
-            fs::create_directory(cwd/destination/"surface/modifiers/averaged");
-//            fs::create_directory(cwd/destination/"surface/hydrogens/total");
-//            fs::create_directory(cwd/destination/"surface/hydrogens/averaged");
-//            fs::create_directory(cwd/destination/"surfaces");
+            fs::create_directory(cwd/destination/"averaged");
+            fs::create_directory(cwd/destination/"total");
             //For each file that matches the pattern perform the stress calculations
             vector<string> pattern_fillers;
             for(string& filename : Helper::files_by_pattern(file_location, pattern, &pattern_fillers, true)){
                 cout << "Starting the stress analysis for: " << filename << endl << endl;
-                analysis_result = analysis(file_location, destination + "/", filename, false, stof(void_volume), stoi(htype), stoi(natype));
+                analysis_result = analysis(file_location, destination + "/", filename, true, stof(void_volume), stoi(htype), stoi(natype));
                 //Store the stress and strain in a csv file
                 system_output.push_back(get<vector<float>>(analysis_result));
                 surface_species.push_back(get<map<string, float>>(analysis_result));
-                Helper::vector2d_csv(destination + "/system_output", "Timestep, Box z, Average Potential Energy on Surface Si, Standard Deviation, Average Potential Energy on Surface O, Standard Deviation, H num, Na num", system_output, pattern_fillers);
-//                Helper::vector_of_maps2csv(destination + "/species", surface_species, pattern_fillers);
+//                Helper::vector2d_csv(destination + "/system_output", "Timestep, Box z, Average Potential Energy on Surface Si, Standard Deviation, Average Potential Energy on Surface O, Standard Deviation, Si num, O num, H num, Na num", system_output, pattern_fillers);
+                Helper::vector_of_maps2csv(destination + "/species", surface_species, pattern_fillers);
                 }
             }
         }else{
