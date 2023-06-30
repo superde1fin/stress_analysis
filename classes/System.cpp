@@ -19,10 +19,11 @@ using namespace std;
 
 
 //System class constructor
-System::System(array<float, 3> box, ifstream& contents, int atoms_number, array<float, 3> center, array<float, 3> box_shift, int htype, int natype){
+System::System(array<float, 3> box, ifstream& contents, int atoms_number, array<float, 3> center, array<float, 3> box_shift, int htype, int natype, float thickness){
     //Ionic settings
     System::htype = htype;
     System::natype = natype;
+    System::surface_thickness = thickness;
     System::types[htype] = "H";
     System::types[natype] = "Na";
     System::radii_mapping[htype] = 0.53;
@@ -46,6 +47,7 @@ System::System(array<float, 3> box, ifstream& contents, int atoms_number, array<
 vector<Atom> System::detect_surface(float void_volume){
     cout << "Starting surface detection\n\n";
     vector<Atom> surface_atoms;
+    int prev_num_surface = 0;
     int cur_num_surface = 0;
     int mesh_size;
     int num_splits = 2;
@@ -56,8 +58,10 @@ vector<Atom> System::detect_surface(float void_volume){
     float cell_volume;
     bool done = false;
     AtomGrid* prev_grid;
+    int test_ctr = 0;
     //Loop while the grid volume is greater than minimum detected void
     while(!done){
+        prev_num_surface = cur_num_surface;
         prev_grid = System::grid;
         //Create the AtomGrid object
         System::grid = new AtomGrid(System::box, num_splits, &(System::atoms), System::masks, System::radii_mapping, void_volume);
@@ -74,15 +78,21 @@ vector<Atom> System::detect_surface(float void_volume){
             mesh_size = System::grid -> get_size();
             cout << "Atom mesh size: " << mesh_size << endl;
             //Run the grid surface detection function
-            surface_atoms = System::grid -> get_surface(System::masks);
+            surface_atoms = System::grid -> get_surface(System::masks, System::surface_thickness);
             cur_num_surface = surface_atoms.size();
             //Increase the rastering definition
             num_splits *= 2;
             cout << "Current number of surface atoms: " << cur_num_surface << endl;
             cout << "Number of masks: " << masks -> get_member_num() << endl;
             cout << "-------------------------------\n";
+            /*
+            if(cur_num_surface && abs(cur_num_surface - prev_num_surface)/prev_num_surface < 0.001){
+                done = true;
+                }
+            */
             }
         else{done = true;}
+        test_ctr++;
         }
     System::grid = prev_grid;
     //Record the acquired surface as a system member
@@ -464,3 +474,46 @@ float System::get_total_potential(vector<Atom> studied_atoms){
 		}
 	return potential;
 	}
+
+map<int, float> System::get_Qunits(){
+    cout << "Q-unit calculations\n";
+    System::grid -> reset_grid(&(System::atoms), System::cutoffs);
+    map<int, int> qunits;
+    vector<tuple<Atom, float>> si_neighbors;
+    vector<tuple<Atom, float>> o_neighbors;
+    Atom si_neigh;
+    int q_count;
+    int num_si = System::former_atoms.size();
+    set<int> exclude;
+    int test_ctr = 0;
+    float percent_done;
+    printf("\e[?25l");
+    for(Atom &atm : System::former_atoms){
+        cout << "\r" << "Percent q-unit scan complete: ";
+        printf("%.2f", 100.0*test_ctr/num_si);
+        exclude.clear();
+        exclude.insert(atm.get_id());
+        q_count = 0;
+        si_neighbors = System::grid -> find_neighbors(&atm, exclude, System::cutoffs);
+        for(tuple<Atom, float> &pair : si_neighbors){
+            si_neigh = get<Atom>(pair);
+            if(si_neigh.get_type() == 2){
+                o_neighbors = System::grid -> find_neighbors(&si_neigh, exclude, System::cutoffs);
+                for(tuple<Atom, float> &o_pair : o_neighbors){
+                    if(get<Atom>(o_pair).get_type() == 1){
+                        q_count++;
+                        }
+                    }
+                }
+            }
+        test_ctr++;
+        qunits[q_count]++;
+        }
+    cout << endl;
+    printf("\e[?25h");
+    map<int, float> q_conc;
+    for(auto it = qunits.begin(); it != qunits.end(); ++it){
+        q_conc[it -> first] = (float)(it -> second)/num_si;
+        }
+    return q_conc;
+    }

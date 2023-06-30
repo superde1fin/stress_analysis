@@ -33,7 +33,7 @@ string get_box(ifstream& contents, array<float, 3>& box, array<float, 3>& box_sh
         }
     return combined_lines;
     }
-tuple<vector<float>, map<string, float>> analysis(string file_location, string destination, string filename, bool iso_surface, float void_volume, int htype, int natype){
+tuple<vector<float>, map<string, float>> analysis(string file_location, string destination, string filename, bool iso_surface, float void_volume, int htype, int natype, float thickness){
     ifstream contents(file_location + filename);
     string line;
     int atoms_number;
@@ -51,6 +51,7 @@ tuple<vector<float>, map<string, float>> analysis(string file_location, string d
     vector<Atom> atomic_species;
     vector<Atom> surface; 
     array<float, 2> potential_result;
+    map<int, float> qunits;
     //Scan through lines
     while(getline(contents, line)){
         //Record header for surface recreation
@@ -67,7 +68,7 @@ tuple<vector<float>, map<string, float>> analysis(string file_location, string d
             }
         if(Helper::string_contains(line, "ITEM: ATOMS")){
             //Create a system object
-            System* atom_system = new System(box, contents, atoms_number, center, box_shift, htype, natype);
+            System* atom_system = new System(box, contents, atoms_number, center, box_shift, htype, natype, thickness);
             //Run the surface detection
             surface = atom_system -> detect_surface(void_volume);
             //If specified, create the surface file
@@ -119,7 +120,13 @@ tuple<vector<float>, map<string, float>> analysis(string file_location, string d
             result.push_back((float)atom_system -> count_species(surface, htype));
             result.push_back((float)atom_system -> count_species(surface, natype));
 
-
+/*
+            qunits = atom_system -> get_Qunits();
+            result.push_back(qunits[1]);
+            result.push_back(qunits[2]);
+            result.push_back(qunits[3]);
+            result.push_back(qunits[4]);
+*/
 
 			//Get a map of molecular species on the surface
 			species = atom_system -> get_surface_species();
@@ -137,6 +144,14 @@ int main(int argc, char** argv){
     string htype(argv[3]);
     //Record sodium type
     string natype(argv[4]);
+    //Get surface thickness
+    string thickness;
+    if(argc > 5){
+        thickness = string(argv[5]);
+        }
+    else{
+        thickness = "0";
+        }
     //Create the file system object
     fs::path cwd = fs::current_path();
     tuple<vector<float>, map<string, float>> analysis_result;
@@ -178,11 +193,11 @@ int main(int argc, char** argv){
             vector<string> pattern_fillers;
             for(string& filename : Helper::files_by_pattern(file_location, pattern, &pattern_fillers, true)){
                 cout << "Starting the stress analysis for: " << filename << endl << endl;
-                analysis_result = analysis(file_location, destination + "/", filename, true, stof(void_volume), stoi(htype), stoi(natype));
+                analysis_result = analysis(file_location, destination + "/", filename, true, stof(void_volume), stoi(htype), stoi(natype), stof(thickness));
                 //Store the stress and strain in a csv file
                 system_output.push_back(get<vector<float>>(analysis_result));
                 surface_species.push_back(get<map<string, float>>(analysis_result));
-                Helper::vector2d_csv(destination + "/system_output", "Timestep, Box z, Stress ZZ, Si num, O num, H num, Na num", system_output, pattern_fillers);
+                Helper::vector2d_csv(destination + "/system_output", "Timestep, Box z, Stress ZZ, Si num, O num, H num, Na num, Q1, Q2, Q3, Q4", system_output, pattern_fillers);
                 Helper::vector_of_maps2csv(destination + "/species", surface_species, pattern_fillers);
                 }
             }
@@ -206,7 +221,7 @@ int main(int argc, char** argv){
             fs::create_directory(cwd/destination/"stresses/oxygen/averaged");
             fs::create_directory(cwd/destination/"stresses/oxygen/total");
             cout << "Starting the stress analysis for: " << input << endl << endl;
-            analysis("./", "./", input, true, stof(void_volume), stoi(htype), stoi(natype));
+            analysis("./", "./", input, true, stof(void_volume), stoi(htype), stoi(natype), stof(thickness));
             }
     return 0;
     }

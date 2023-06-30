@@ -17,7 +17,7 @@ using namespace std;
 class System{
 
     public:
-        System(array<float, 3> box, ifstream& contents, int atoms_number, array<float, 3> center, array<float, 3> box_shift, int htype, int natype);
+        System(array<float, 3> box, ifstream& contents, int atoms_number, array<float, 3> center, array<float, 3> box_shift, int htype, int natype, float thickness);
 
         vector<Atom> detect_surface(float void_volume);
         vector<vector<float>> calc_stresses(vector<Atom>& main_atoms, vector<Atom>& secondary_atoms);
@@ -36,6 +36,7 @@ class System{
         array<float, 2> average_potential(vector<Atom> atoms_studied);
 		vector<Atom> get_species(vector<Atom> studied_atoms, int type);
 		float get_total_potential(vector<Atom> studied_atoms);
+        map<int, float> get_Qunits();
     private:
         set<int> exclude;
         Molecule* scan_molecule(Atom prev_atm, Atom atm, set<int>* exclude);
@@ -58,6 +59,7 @@ class System{
         vector<Atom> hydrogens;
         int htype;
         int natype;
+        float surface_thickness;
 
         void scan_positions(ifstream& contents);
         vector<Atom> filter_surface(vector<Atom> unfiltered);

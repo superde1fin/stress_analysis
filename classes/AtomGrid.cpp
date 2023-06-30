@@ -94,7 +94,7 @@ float AtomGrid::get_density(){
     }
 
 //A function that detects the surface
-vector<Atom> AtomGrid::get_surface(MaskGrid* mask_ptr){
+vector<Atom> AtomGrid::get_surface(MaskGrid* mask_ptr, float surface_thickness){
     vector<Atom> surface_atoms;
     vector<Atom> neighbors;
     //For each non-masked grid cell
@@ -102,7 +102,7 @@ vector<Atom> AtomGrid::get_surface(MaskGrid* mask_ptr){
         //If grid cell is empty
         if((it -> second) -> is_empty()){
             //Scan closest neighbors (surface)
-            neighbors = AtomGrid::get_neighbors(it -> first);
+            neighbors = AtomGrid::get_neighbors(it -> first, surface_thickness);
             //Add each neighbor atom to the surface
             for(auto& neigh : neighbors){
                 surface_atoms.push_back(neigh);
@@ -122,7 +122,10 @@ vector<Atom> AtomGrid::get_surface(MaskGrid* mask_ptr){
     }
 
 //Returns a vector of neighboring atoms to an empty cell
-vector<Atom> AtomGrid::get_neighbors(array<int, 3> origin_key){
+vector<Atom> AtomGrid::get_neighbors(array<int, 3> origin_key, float surface_thickness){
+    if(!surface_thickness){
+        surface_thickness = 1.5*(AtomGrid::float_sides[0] + AtomGrid::float_sides[1] + AtomGrid::float_sides[2])/3;
+        }
     float dist;
     array<int, 3> key;
     array<float, 3> center;
@@ -142,7 +145,7 @@ vector<Atom> AtomGrid::get_neighbors(array<int, 3> origin_key){
                         //Calculate the distance from an atom to the center of cell in question
                         dist = Helper::dist(atm_ptr -> get_position(), center, AtomGrid::box);
                         //If the distance is less than a specific fraction of cell dimensions, add to neighbor list
-                        if(dist < 1.5*(AtomGrid::float_sides[0] + AtomGrid::float_sides[1] + AtomGrid::float_sides[2])/3){
+                        if(dist < surface_thickness){
                             result.push_back(*atm_ptr);
                             }
                         }

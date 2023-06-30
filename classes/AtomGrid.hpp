@@ -22,7 +22,7 @@ class AtomGrid: public Grid{
         int get_status(int key_x, int key_y, int key_z);
         void add_atom(int key_x, int key_y, int key_z, Atom* atm_ptr);
         float get_density();
-        vector<Atom> get_surface(MaskGrid* mask_ptr);
+        vector<Atom> get_surface(MaskGrid* mask_ptr, float surface_thickness);
         float get_cell_volume();
         void reset_grid(vector<Atom>* atoms_ptr, map<int, map<int, float>> cutoffs);
     private:
@@ -32,7 +32,7 @@ class AtomGrid: public Grid{
         float average_density;
         map<int, float> radii_mapping;
         float free_volume(array<int, 3> key);
-        vector<Atom> get_neighbors(array<int, 3> key);
+        vector<Atom> get_neighbors(array<int, 3> key, float surface_thickness);
         bool all_around(array<int, 3> key, int depth);
         float median_density;
     friend class System;
