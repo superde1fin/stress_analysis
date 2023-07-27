@@ -94,7 +94,7 @@ tuple<vector<float>, map<string, float>> analysis(string file_location, string d
             Helper::vector2d_csv(destination + "potentials/silicon/total/" + filename, "Distance to closest modifier, Potential Energy", total_stresses);
             //Condense the data and average stress based on distance ranges
             average_stresses = atom_system -> average_property(total_stresses, 2.0, 4.0);
-            Helper::vector2d_csv(destination + "potentials/silicon/averaged/" + filename, "Bin span, ZZ stress, Atom count", average_stresses);
+            Helper::vector2d_csv(destination + "potentials/silicon/averaged/" + filename, "Bin span, PotEng, Atom count", average_stresses);
 
 //----------Stresses on surface oxygens
 			atomic_species = atom_system -> get_species(surface, 2);
@@ -103,7 +103,7 @@ tuple<vector<float>, map<string, float>> analysis(string file_location, string d
             //Record the atom stresses into a csv
             Helper::vector2d_csv(destination + "stresses/oxygen/total/" + filename, "Distance to closest modifier, ZZ stress", total_stresses);
             //Condense the data and average stress based on distance ranges
-            average_stresses = atom_system -> average_property(total_stresses, 2.0, 4.0);
+            average_stresses = atom_system -> average_property(total_stresses, 1.0, 7.0);
             Helper::vector2d_csv(destination + "stresses/oxygen/averaged/" + filename, "Bin span, ZZ stress, Atom count", average_stresses);
 //----------Potential on surface oxygens
             //Run the stress calculator based on modifiers
@@ -111,8 +111,8 @@ tuple<vector<float>, map<string, float>> analysis(string file_location, string d
             //Record the atom stresses into a csv
             Helper::vector2d_csv(destination + "potentials/oxygen/total/" + filename, "Distance to closest modifier, Potential Energy", total_stresses);
             //Condense the data and average stress based on distance ranges
-            average_stresses = atom_system -> average_property(total_stresses, 2.0, 4.0);
-            Helper::vector2d_csv(destination + "potentials/oxygen/averaged/" + filename, "Bin span, ZZ stress, Atom count", average_stresses);
+            average_stresses = atom_system -> average_property(total_stresses, 1.0, 7.0);
+            Helper::vector2d_csv(destination + "potentials/oxygen/averaged/" + filename, "Bin span, PotEng, Atom count", average_stresses);
 
             result.push_back(atom_system -> get_total_comp(2));
             result.push_back((float)atom_system -> count_species(surface, 1));
@@ -120,13 +120,31 @@ tuple<vector<float>, map<string, float>> analysis(string file_location, string d
             result.push_back((float)atom_system -> count_species(surface, htype));
             result.push_back((float)atom_system -> count_species(surface, natype));
 
-/*
             qunits = atom_system -> get_Qunits();
-            result.push_back(qunits[1]);
-            result.push_back(qunits[2]);
-            result.push_back(qunits[3]);
-            result.push_back(qunits[4]);
-*/
+			if(qunits.count(1)){
+            	result.push_back(qunits[1]);
+				}
+			else{
+            	result.push_back(0);
+				}
+			if(qunits.count(2)){
+            	result.push_back(qunits[2]);
+				}
+			else{
+            	result.push_back(0);
+				}
+			if(qunits.count(3)){
+            	result.push_back(qunits[3]);
+				}
+			else{
+            	result.push_back(0);
+				}
+			if(qunits.count(4)){
+            	result.push_back(qunits[4]);
+				}
+			else{
+            	result.push_back(0);
+				}
 
 			//Get a map of molecular species on the surface
 			species = atom_system -> get_surface_species();
@@ -221,7 +239,8 @@ int main(int argc, char** argv){
             fs::create_directory(cwd/destination/"stresses/oxygen/averaged");
             fs::create_directory(cwd/destination/"stresses/oxygen/total");
             cout << "Starting the stress analysis for: " << input << endl << endl;
-            analysis("./", "./", input, true, stof(void_volume), stoi(htype), stoi(natype), stof(thickness));
+            analysis("./", destination + "/", input, true, stof(void_volume), stoi(htype), stoi(natype), stof(thickness));
             }
+    //analysis(file_location, destination + "/", filename, true, stof(void_volume), stoi(htype), stoi(natype), stof(thickness));
     return 0;
     }

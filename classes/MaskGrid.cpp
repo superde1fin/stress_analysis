@@ -1,4 +1,6 @@
 #include <array>
+#include <cmath>
+#include <iostream>
 
 #include "MaskGrid.hpp"
 #include "Grid.hpp"
@@ -24,5 +26,11 @@ bool MaskGrid::in_mask(array<float, 3> position) {
     array<int, 3> key = { static_cast<int>(position[0] / MaskGrid::float_sides[0]),
                           static_cast<int>(position[1] / MaskGrid::float_sides[1]),
                           static_cast<int>(position[2] / MaskGrid::float_sides[2]) };
-    return MaskGrid::grid_map.count(key) > 0;
+    bool near_borders = false;
+    for(int i = 0; i < 3; i++){
+        if(abs(fmod(position[i], MaskGrid::float_sides[i]) - MaskGrid::float_sides[i])/MaskGrid::float_sides[i] < 0.2){
+            near_borders = true;
+            }
+        }
+    return MaskGrid::grid_map.count(key) && !near_borders;
 }

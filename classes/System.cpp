@@ -85,11 +85,10 @@ vector<Atom> System::detect_surface(float void_volume){
             cout << "Current number of surface atoms: " << cur_num_surface << endl;
             cout << "Number of masks: " << masks -> get_member_num() << endl;
             cout << "-------------------------------\n";
-            /*
-            if(cur_num_surface && abs(cur_num_surface - prev_num_surface)/prev_num_surface < 0.001){
-                done = true;
+            if(prev_num_surface && abs(cur_num_surface - prev_num_surface)/(float)prev_num_surface < 0.01){
+//            cout << prev_num_surface << " " << cur_num_surface << " " << abs(cur_num_surface - prev_num_surface)/prev_num_surface << endl;
+        done = true;
                 }
-            */
             }
         else{done = true;}
         test_ctr++;
@@ -142,7 +141,7 @@ void System::scan_positions(ifstream& contents){
         }
     }
 
-//A function that calculates per atom average stress as a function to the closest modifier
+//A function that calculates per atom potential energy as a function to the closest modifier
 vector<vector<float>> System::calc_potentials(vector<Atom>& main_atoms, vector<Atom>& secondary_atoms){
     cout << "Beginning the potential energy calculations\n\n";
     tuple<Atom, float> closest;
@@ -162,7 +161,7 @@ vector<vector<float>> System::calc_potentials(vector<Atom>& main_atoms, vector<A
     return stress_function;
     }
 
-//A function that calculates per atom average stress as a function to the closest modifier
+//A function that calculates per atom stress as a function to the closest modifier
 vector<vector<float>> System::calc_stresses(vector<Atom>& main_atoms, vector<Atom>& secondary_atoms){
     cout << "Beginning the stress calculations\n\n";
     tuple<Atom, float> closest;
@@ -182,7 +181,19 @@ vector<vector<float>> System::calc_stresses(vector<Atom>& main_atoms, vector<Ato
     return stress_function;
     }
 
-//Average the stresses by distance regions
+vector<vector<float>> System::average_property(vector<vector<float>>& stresses){
+    /*
+    sort(stresses.begin(), stresses.end(), [=](vector<float>& vect1, vector<float>& vect2){return vect1[0] < vect2[0];});
+    float low_bound = (*stresses.begin())[0];
+    float up_bound = (*stresses.end())[0];
+    */
+    float low_bound = (*min_element(stresses.begin(), stresses.end(), [=](vector<float>& vect1, vector<float>& vect2){return vect1[0] < vect2[0];}))[0];
+    float up_bound = (*max_element(stresses.begin(), stresses.end(), [=](vector<float>& vect1, vector<float>& vect2){return vect1[0] < vect2[0];}))[0];
+    cout << "Low: " << low_bound << " Up: " << up_bound << endl;
+    return System::average_property(stresses, low_bound, up_bound);
+    }
+
+//Average the property by distance regions
 vector<vector<float>> System::average_property(vector<vector<float>>& stresses, float low_bound, float up_bound){
     float binwidth = (up_bound - low_bound)/20;
     //Sort the stresses vector by distance to closest modifier
@@ -489,8 +500,8 @@ map<int, float> System::get_Qunits(){
     float percent_done;
     printf("\e[?25l");
     for(Atom &atm : System::former_atoms){
-        cout << "\r" << "Percent q-unit scan complete: ";
-        printf("%.2f", 100.0*test_ctr/num_si);
+//        cout << "\r" << "Percent q-unit scan complete: ";
+//        printf("%.2f", 100.0*test_ctr/num_si);
         exclude.clear();
         exclude.insert(atm.get_id());
         q_count = 0;
